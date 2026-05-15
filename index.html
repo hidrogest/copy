@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-signin-client_id" content="197828557990-h0bavtoiisc0nb15bde97k6922gmrsah.apps.googleusercontent.com">
     <title>Sistema de Aprovação - Hidrogest</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -583,7 +584,13 @@
 
             const loginGoogle = async () => {
                 if(!auth) return;
-                try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+                try {
+                    const provider = new GoogleAuthProvider();
+                    provider.setCustomParameters({
+                        client_id: '197828557990-h0bavtoiisc0nb15bde97k6922gmrsah.apps.googleusercontent.com'
+                    });
+                    await signInWithPopup(auth, provider);
+                }
                 catch(e) { console.error('Erro de popup', e); }
             };
 
