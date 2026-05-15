@@ -85,7 +85,7 @@
         const instaProfile = {
             username: "hidrogest_engenharia",
             name: "Hidrogest Engenharia e Consultoria",
-            posts: 74,
+            posts: 75,
             followers: 295,
             following: 88,
             category: "Produto/serviço",
@@ -95,6 +95,24 @@
         };
 
         const portfolioData = [
+            {
+                id: 2,
+                title: "Tecnologia e Inteligência de Dados",
+                platform: "Instagram + LinkedIn",
+                status: "pending",
+                statusLabel: "Aguardando Avaliação",
+                author: "Hidrogest Engenharia",
+                role: "Engenharia e Meio Ambiente",
+                avatar: "https://drive.google.com/thumbnail?id=1N19BuQD2EAwpsGJBu85561u67orNR92h&sz=w200",
+                caption: {
+                    linkedin: `Decisões corporativas de alto nível não podem ser tomadas no escuro — especialmente quando envolvem o uso ou o desvio de recursos hídricos. Na Hidrogest, unimos hidrografia de precisão com modelagem de dados avançada. Mapeamos desde a capacidade volumétrica de grandes reservatórios industriais até a dinâmica de fluxo de rios em áreas de mineração. Tecnologia de ponta a serviço da engenharia da sua empresa.\n\n#Inovação #Hidrografia #Tecnologia #Mineração #EngenhariaAmbiental`,
+                    instagram: `Precisão milimétrica para decisões milionárias. A tecnologia hidrográfica da Hidrogest revela o comportamento dinâmico da água, entregando inteligência de dados para operações complexas em mineração, agro e indústrias. Conheça nossas soluções corporativas.\n\n#Inovação #Hidrografia #Tecnologia #Mineração #EngenhariaAmbiental`
+                },
+                marketingNote: `Sugiro priorizarmos a expressão "Dinâmica Invisível" na abertura da copy do Instagram e no primeiro parágrafo do LinkedIn.\n\nEm mercados de alta complexidade como mineração e grandes indústrias, o maior medo de um gestor é o risco não mapeado. Ao utilizarmos o conceito de "dinâmica invisível", criamos um gatilho mental de curiosidade e urgência: o cliente percebe que o que ele vê na superfície da água não é suficiente para garantir a segurança operacional ou o cumprimento de metas de ESG.\n\nEssa abordagem permite que a Hidrogest se posicione não apenas como uma empresa de medição, mas como a detentora da tecnologia que "revela" o que está oculto sob a lâmina d'água, justificando o investimento em modelagem de dados avançada para mitigar riscos financeiros e ambientais.`,
+                imageUrl: "https://drive.google.com/thumbnail?id=1MHrUwBvPVE4GCiQLCk3U2rTQxGOInx-e&sz=w1000",
+                fallbackUrl: "https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?q=80&w=1080&auto=format&fit=crop",
+                date: "20 Mai 2026"
+            },
             {
                 id: 1,
                 title: "Bacia Hidrográfica",
@@ -150,6 +168,14 @@
 
         const InstagramMockup = ({ post }) => {
             const [view, setView] = useState('profile');
+            const [activePost, setActivePost] = useState(post);
+
+            // Garante que se o card trocar, a visualização reseta
+            useEffect(() => {
+                setActivePost(post);
+            }, [post]);
+
+            const captionText = typeof activePost.caption === 'string' ? activePost.caption : activePost.caption.instagram;
 
             return (
                 <div className="bg-white dark:bg-black rounded-2xl border border-slate-300 dark:border-slate-800 overflow-hidden w-full max-w-[400px] mx-auto text-slate-900 dark:text-white transition-colors shadow-sm">
@@ -197,34 +223,42 @@
 
                             {/* Grid Posts */}
                             <div className="grid grid-cols-3 gap-0.5">
-                                <div onClick={() => setView('post')} className="aspect-[4/5] relative cursor-pointer group bg-slate-100 dark:bg-slate-900 overflow-hidden">
-                                    <img src={post.imageUrl} className="w-full h-full object-cover" alt="Post thumbnail" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <Eye className="w-6 h-6 text-white opacity-90" />
+                                {portfolioData.map((p) => (
+                                    <div key={p.id} onClick={() => { setActivePost(p); setView('post'); }} className="aspect-[4/5] relative cursor-pointer group bg-slate-100 dark:bg-slate-900 overflow-hidden">
+                                        <img src={p.imageUrl} className="w-full h-full object-cover" alt="Post thumbnail" />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Eye className="w-6 h-6 text-white opacity-90" />
+                                        </div>
+                                        {/* Indicador do post atual do card */}
+                                        {p.id === post.id && (
+                                            <div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-brand-lightBlue border-2 border-white dark:border-black shadow-sm" title="Post referente a este card"></div>
+                                        )}
                                     </div>
-                                </div>
-                                <div className="aspect-[4/5] bg-slate-100 dark:bg-[#1C1C1E]"></div>
-                                <div className="aspect-[4/5] bg-slate-100 dark:bg-[#1C1C1E]"></div>
+                                ))}
+                                {/* Preenchimento da grade com blocos vazios para manter o layout visual do Instagram */}
+                                {Array.from({ length: Math.max(0, 9 - portfolioData.length) }).map((_, i) => (
+                                    <div key={`empty-${i}`} className="aspect-[4/5] bg-slate-100 dark:bg-[#1C1C1E]"></div>
+                                ))}
                             </div>
                         </div>
                     ) : (
                         <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
                             {/* Single Post View */}
                             <div className="flex items-center p-3 border-b border-slate-200 dark:border-slate-800">
-                                <button onClick={() => setView('profile')} className="p-1 -ml-1 text-slate-900 dark:text-white">
+                                <button onClick={() => { setView('profile'); setActivePost(post); }} className="p-1 -ml-1 text-slate-900 dark:text-white">
                                     <ChevronLeft className="w-6 h-6" />
                                 </button>
                                 <span className="font-bold text-[15px] flex-1 text-center mr-6">Publicações</span>
                             </div>
                             
                             <div className="flex items-center gap-2.5 px-3.5 py-2.5">
-                                <img src={post.avatar} className="w-8 h-8 rounded-full object-contain border border-slate-200 dark:border-slate-700" alt="Avatar" />
+                                <img src={activePost.avatar} className="w-8 h-8 rounded-full object-contain border border-slate-200 dark:border-slate-700" alt="Avatar" />
                                 <span className="font-bold text-[13px]">{instaProfile.username}</span>
                                 <MoreHorizontal className="w-4 h-4 ml-auto text-slate-500" />
                             </div>
 
                             <div className="bg-black flex items-center justify-center border-y border-slate-200 dark:border-slate-800">
-                                <img src={post.imageUrl} onError={(e) => handleImgErr(e, post.fallbackUrl)} className="w-full object-contain max-h-[420px]" alt="Post" />
+                                <img src={activePost.imageUrl} onError={(e) => handleImgErr(e, activePost.fallbackUrl)} className="w-full object-contain max-h-[420px]" alt="Post" />
                             </div>
 
                             <div className="p-3.5 pb-6">
@@ -238,7 +272,7 @@
                                 </div>
                                 <p className="font-bold text-[13px] mb-1">34 curtidas</p>
                                 <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
-                                    <strong className="mr-1.5">{instaProfile.username}</strong>{post.caption}
+                                    <strong className="mr-1.5">{instaProfile.username}</strong>{captionText}
                                 </p>
                                 <p className="text-[11px] text-slate-500 mt-2 uppercase tracking-wider">Aguardando aprovação</p>
                             </div>
@@ -249,6 +283,8 @@
         };
 
         const LinkedinMockup = ({ post }) => {
+            const captionText = typeof post.caption === 'string' ? post.caption : post.caption.linkedin;
+
             return (
                 <div className="bg-white dark:bg-[#1D2226] border border-slate-300 dark:border-[#38434F] rounded-xl overflow-hidden w-full max-w-[500px] mx-auto text-slate-900 dark:text-white transition-colors shadow-sm">
                     <div className="p-4 pb-2 flex items-start gap-3">
@@ -262,7 +298,7 @@
                         </div>
                         <MoreHorizontal className="w-5 h-5 text-slate-500 cursor-pointer" />
                     </div>
-                    <p className="text-[13px] px-4 pb-3 leading-relaxed whitespace-pre-wrap">{post.caption}</p>
+                    <p className="text-[13px] px-4 pb-3 leading-relaxed whitespace-pre-wrap">{captionText}</p>
                     <div className="border-y border-slate-300 dark:border-[#38434F]">
                         <img src={post.imageUrl} onError={(e) => handleImgErr(e, post.fallbackUrl)} className="w-full object-contain max-h-[400px] bg-slate-100 dark:bg-black block" alt="Post" />
                     </div>
@@ -461,7 +497,7 @@
                         {/* Lado Direito: Nota Estratégica e Downloads */}
                         <div className="flex flex-col p-6 md:p-8 lg:p-10">
                             
-                            {/* Bloco Nota Estratégica (Movi um pouco para cima tirando a margem extra, já que não tem mais copy) */}
+                            {/* Bloco Nota Estratégica */}
                             <div className="mb-8">
                                 <h4 className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-400 flex items-center gap-2 mb-4">
                                     <Lightbulb className="w-4 h-4" /> Nota Estratégica
