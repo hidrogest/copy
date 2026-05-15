@@ -1,590 +1,772 @@
-import React, { useState, useEffect } from 'react';
-import { Download, Instagram, Linkedin, Heart, MessageCircle, Send, Bookmark, ThumbsUp, Repeat2, Lightbulb, MoreHorizontal, Globe, Moon, Sun, Grid, PlaySquare, UserSquare, Link as LinkIcon, Mail, Phone, MessageSquare, CheckCircle2, ChevronLeft } from 'lucide-react';
-
-// --- INTEGRAÇÃO COM FIREBASE (Login e Banco de Dados) ---
-import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-
-// Inicialização segura do Firebase no ambiente
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'sistema-aprovacao-copy';
-
-// Cores da paleta da marca
-const brandColors = {
-  lightBlue: '#55BBDF',
-  darkBlue: '#153D56',
-  darkGreen: '#00524D',
-  mediumGreen: '#659368',
-  lightGreen: '#CFDDBA',
-  white: '#FFFFFF'
-};
-
-const logoUrl = "https://drive.google.com/thumbnail?id=1N19BuQD2EAwpsGJBu85561u67orNR92h&sz=w1000";
-
-// Dados do Instagram
-const instaProfile = {
-  username: "hidrogest_engenharia",
-  name: "Hidrogest Engenharia e Consultoria",
-  posts: 74,
-  followers: 295,
-  following: 88,
-  category: "Produto/serviço",
-  bio: [
-    "• Batimetria",
-    "• Hidrometria",
-    "• Monitoramento e qualidade de água",
-    "• Operação e Manut. de equipamento... mais"
-  ],
-  address: "Rua Contria, 769, Alto Barroca., Belo Horizonte, Brazil 30431-028",
-  link: "linktr.ee/hidrogest"
-};
-
-// Banco de dados dos seus Posts para aprovação
-const portfolioData = [
-  {
-    id: 1,
-    title: "Post: Bacia Hidrográfica",
-    status: "Aguardando Avaliação",
-    author: "Hidrogest Engenharia e Consultoria",
-    role: "Engenharia e Meio Ambiente",
-    avatar: "https://drive.google.com/thumbnail?id=1N19BuQD2EAwpsGJBu85561u67orNR92h&sz=w200",
-    caption: `Imagine um grande funil esculpido pelo próprio relevo: essa é a dinâmica de uma bacia hidrográfica! 💧\n\nA topografia do terreno atua como um sistema de captação. Toda a água da chuva que cai nessa área converge pelas encostas até um único ponto de saída, formando o nosso rio principal. É exatamente esse "efeito funil" que dita o equilíbrio dos nossos ecossistemas e garante o abastecimento de água.\n\nVocê sabe a qual bacia hidrográfica o seu município pertence? Conta aqui para mim! 👇\n\n#GeografiaFisica #RecursosHidricos #BaciasHidrograficas #GestaoAmbiental`,
-    marketingNote: `Sugiro mantermos o termo "funil" na copy por uma questão estratégica de retenção e economia cognitiva. \n\nEm vídeos curtos, precisamos de um gancho visual imediato nos primeiros segundos, e a palavra "funil" traduz a complexidade topográfica de uma bacia hidrográfica em uma imagem mental instantânea que qualquer pessoa compreende sem esforço. Isso prende a atenção do usuário, facilita muito a inserção de elementos gráficos na edição do Reel e tangibiliza a dinâmica do relevo de forma didática.\n\nA ideia é usar essa analogia apenas como uma isca inicial para impedir que o público pule o vídeo e, logo na sequência, entregar a autoridade e o conceito técnico correto, garantindo engajamento sem perder o tom profissional.`,
-    imageUrl: "https://drive.google.com/thumbnail?id=10YhCxnMMyVKty0uUbGLeuR7hIOFxe7uz&sz=w1000",
-    fallbackUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1080&auto=format&fit=crop"
-  }
-];
-
-// Funções globais auxiliares
-const handleDownload = async (url, fallbackUrl, filename) => {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("CORS ou erro de rede");
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = filename || 'post-image.jpg';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(blobUrl);
-  } catch (e) {
-    window.open(url, '_blank');
-  }
-};
-
-const handleImageError = (e, fallbackUrl) => {
-  e.target.src = fallbackUrl;
-};
-
-// Componente de Feedback Específico de cada Post
-const PostFeedback = ({ postId, isDark, user }) => {
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Aprovação - Hidrogest</title>
     
-    const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', `post_comments_${postId}`);
-    const unsubscribe = onSnapshot(commentsRef, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      data.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
-      setComments(data);
-    }, (error) => {
-      console.error("Erro ao buscar comentários do post", error);
-    });
-
-    return () => unsubscribe();
-  }, [user, postId]);
-
-  const handleAddComment = async (e) => {
-    e.preventDefault();
-    if (!newComment.trim() || !user) return;
-    
-    setIsSubmitting(true);
-    try {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', `post_comments_${postId}`), {
-        text: newComment,
-        userId: user.uid,
-        userName: user.isAnonymous ? "Membro da Equipe (Visitante)" : (user.displayName || "Usuário"),
-        userPhoto: user.photoURL || `https://ui-avatars.com/api/?name=${user.isAnonymous ? 'E' : user.displayName?.charAt(0) || 'U'}&background=153D56&color=fff`,
-        createdAt: serverTimestamp()
-      });
-      setNewComment("");
-    } catch (e) {
-      console.error("Erro ao postar comentário", e);
-    }
-    setIsSubmitting(false);
-  };
-
-  const isGoogleUser = user && !user.isAnonymous;
-
-  return (
-    <div className={`border-t ${isDark ? 'border-slate-700 bg-[#1E293B]' : 'border-gray-200 bg-white'}`}>
-      <div className={`p-6 border-b flex flex-col md:flex-row items-center justify-between gap-4 ${isDark ? 'border-slate-700 bg-slate-800/30' : 'border-gray-200 bg-blue-50/50'}`}>
-        <div>
-          <h4 className={`font-bold text-lg flex items-center gap-2 ${isDark ? 'text-white' : 'text-[#153D56]'}`}>
-            <CheckCircle2 className="w-5 h-5 text-green-500" /> Aprovação / Solicitação de Ajustes
-          </h4>
-          <p className={`text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
-            Tudo certo com essa copy? Chame direto no WhatsApp ou Email para aprovar ou pedir alterações.
-          </p>
-        </div>
-        
-        <div className="flex gap-3 w-full md:w-auto">
-          <a 
-            href={`https://wa.me/5531985547183?text=Olá Felipe! Sobre o post ${postId}...`} 
-            target="_blank" 
-            rel="noreferrer"
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded-lg font-semibold transition-colors text-sm"
-          >
-            <Phone className="w-4 h-4" /> WhatsApp
-          </a>
-          <a 
-            href={`mailto:canellifelipe@gmail.com?subject=Aprovação - Post ${postId}`} 
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-colors text-sm border ${isDark ? 'border-slate-600 text-white hover:bg-slate-700' : 'border-[#153D56] text-[#153D56] hover:bg-gray-50'}`}
-          >
-            <Mail className="w-4 h-4" /> E-mail
-          </a>
-        </div>
-      </div>
-
-      <div className="p-6 lg:p-8">
-        <h4 className={`font-bold flex items-center gap-2 mb-6 ${isDark ? 'text-white' : 'text-gray-800'}`}>
-          <MessageSquare className={`w-5 h-5 ${isDark ? 'text-[#55BBDF]' : 'text-[#00524D]'}`} /> 
-          Comentários da Equipe sobre esta Copy
-        </h4>
-
-        <div className={`p-4 rounded-xl mb-6 border ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-gray-50 border-gray-100'}`}>
-          {!isGoogleUser ? (
-            <div className="text-center py-4">
-              <p className={`mb-3 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>Faça login para adicionar notas ou pedir ajustes.</p>
-              <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>Use o botão "Entrar com Google" no topo da página.</p>
-            </div>
-          ) : (
-            <form onSubmit={handleAddComment}>
-              <div className="flex items-start gap-3">
-                <img src={user.photoURL} alt="Você" className="w-8 h-8 rounded-full shadow-sm mt-1" />
-                <div className="flex-1">
-                  <textarea 
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Ex: Adicionar a hashtag #Nova no final..."
-                    className={`w-full p-3 rounded-lg border focus:ring-2 focus:outline-none transition-all resize-none text-sm h-20 ${isDark ? 'bg-[#0F172A] border-slate-600 focus:ring-[#55BBDF] text-white placeholder-slate-500' : 'bg-white border-gray-200 focus:ring-[#153D56] text-gray-800'}`}
-                    required
-                  ></textarea>
-                  <div className="flex justify-end mt-2">
-                    <button 
-                      type="submit" 
-                      disabled={isSubmitting || !newComment.trim()}
-                      className={`px-4 py-1.5 rounded-lg font-bold text-white text-sm transition-all ${isSubmitting || !newComment.trim() ? 'opacity-50 cursor-not-allowed bg-gray-400' : 'hover:scale-105 shadow-sm ' + (isDark ? 'bg-[#55BBDF] text-slate-900' : 'bg-[#153D56]')}`}
-                    >
-                      {isSubmitting ? 'Enviando...' : 'Adicionar Nota'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </form>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          {comments.length === 0 ? (
-            <p className={`text-sm py-2 italic ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>Nenhuma nota ou solicitação de ajuste para esta copy ainda.</p>
-          ) : (
-            comments.map((comment) => (
-              <div key={comment.id} className={`flex gap-3 p-4 rounded-xl border ${isDark ? 'bg-[#0F172A] border-slate-700' : 'bg-white border-gray-100 shadow-sm'}`}>
-                <img src={comment.userPhoto} alt={comment.userName} className="w-8 h-8 rounded-full shrink-0" />
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`font-bold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{comment.userName}</span>
-                    <span className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
-                      {comment.createdAt ? new Date(comment.createdAt.toMillis()).toLocaleString('pt-BR') : 'Agora'}
-                    </span>
-                  </div>
-                  <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>{comment.text}</p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Componente Individual do Post com a visão do Marketing
-const PostItem = ({ post, isDark, user }) => {
-  const [activeTab, setActiveTab] = useState('instagram');
-  const [instaView, setInstaView] = useState('profile'); // 'profile' ou 'post'
-
-  return (
-    <article className={`flex flex-col rounded-3xl shadow-xl border overflow-hidden mb-16 transition-colors duration-300 ${isDark ? 'bg-[#1E293B] border-slate-700 shadow-black/40' : 'bg-white border-gray-200 shadow-gray-200/50'}`}>
-      
-      {/* Layout Duplo Superior: Mockup + Estratégia */}
-      <div className="flex flex-col lg:flex-row">
-        
-        {/* Lado Esquerdo: Simulador da Rede Social */}
-        <div className={`w-full lg:w-1/2 flex flex-col border-b lg:border-b-0 lg:border-r transition-colors duration-300 ${isDark ? 'border-slate-700 bg-[#0F172A]' : 'border-gray-200 bg-[#F3F4F6]'}`}>
-          
-          {/* Controles do Simulador */}
-          <div className={`flex border-b sticky top-0 z-10 shrink-0 transition-colors duration-300 ${isDark ? 'bg-[#1E293B] border-slate-700' : 'bg-white border-gray-200'}`}>
-            <button 
-              onClick={() => setActiveTab('instagram')}
-              className={`flex-1 flex justify-center items-center gap-2 py-4 font-semibold text-sm transition-colors ${activeTab === 'instagram' ? 'border-b-2' : ''} ${isDark ? (activeTab === 'instagram' ? 'text-[#55BBDF] border-[#55BBDF] bg-slate-800/50' : 'text-slate-400 hover:text-slate-200') : (activeTab === 'instagram' ? 'bg-gray-50' : 'text-gray-400 hover:text-gray-600')}`}
-              style={!isDark && activeTab === 'instagram' ? { color: brandColors.darkGreen, borderColor: brandColors.darkGreen } : {}}
-            >
-              <Instagram className="w-4 h-4" /> Visão Instagram
-            </button>
-            <button 
-              onClick={() => setActiveTab('linkedin')}
-              className={`flex-1 flex justify-center items-center gap-2 py-4 font-semibold text-sm transition-colors ${activeTab === 'linkedin' ? 'border-b-2' : ''} ${isDark ? (activeTab === 'linkedin' ? 'text-[#55BBDF] border-[#55BBDF] bg-slate-800/50' : 'text-slate-400 hover:text-slate-200') : (activeTab === 'linkedin' ? 'bg-gray-50' : 'text-gray-400 hover:text-gray-600')}`}
-              style={!isDark && activeTab === 'linkedin' ? { color: brandColors.darkBlue, borderColor: brandColors.darkBlue } : {}}
-            >
-              <Linkedin className="w-4 h-4" /> Visão LinkedIn
-            </button>
-          </div>
-
-          {/* Área de exibição do mockup */}
-          <div className="flex-1 p-4 lg:p-6 flex justify-center items-start min-h-[600px] overflow-y-auto">
-            {/* --- MOCKUP INSTAGRAM --- */}
-            {activeTab === 'instagram' && (
-              <div className={`max-w-[480px] w-full border rounded-xl shadow-sm overflow-hidden font-sans text-[14px] transition-colors duration-300 relative ${isDark ? 'bg-black border-gray-800 text-white' : 'bg-white border-gray-200 text-black'}`}>
-                
-                {instaView === 'profile' ? (
-                  // TELA DO PERFIL
-                  <div className="animate-in fade-in duration-300">
-                    <div className={`border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
-                      <div className="flex items-center justify-center p-3 font-bold text-base relative">
-                        <span className="flex items-center gap-1">{instaProfile.username}</span>
-                      </div>
-                      <div className="flex items-center px-4 py-2">
-                        <div className="w-20 h-20 rounded-full p-[2px] border border-gray-300 shrink-0 flex items-center justify-center bg-white overflow-hidden">
-                          <img src={post.avatar} alt="Avatar" className="w-full h-full object-contain" />
-                        </div>
-                        <div className="flex flex-1 justify-around text-center ml-2">
-                          <div className="flex flex-col"><span className="font-bold text-base">{instaProfile.posts}</span><span className="text-xs">posts</span></div>
-                          <div className="flex flex-col"><span className="font-bold text-base">{instaProfile.followers}</span><span className="text-xs">seguidores</span></div>
-                          <div className="flex flex-col"><span className="font-bold text-base">{instaProfile.following}</span><span className="text-xs">seguindo</span></div>
-                        </div>
-                      </div>
-                      <div className="px-4 py-2 text-sm">
-                        <h1 className="font-bold">{instaProfile.name}</h1>
-                        <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>{instaProfile.category}</p>
-                        <div className="mt-1 leading-snug whitespace-pre-wrap">
-                          {instaProfile.bio.join('\n')}
-                        </div>
-                        <p className={`text-xs mt-1 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{instaProfile.address}</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <LinkIcon className="w-3 h-3" />
-                          <a href="#" className={`font-semibold text-xs ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>{instaProfile.link}</a>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 px-4 py-2 mt-1">
-                        <button className={`flex-1 rounded-lg py-1.5 font-semibold text-sm ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'}`}>Seguindo</button>
-                        <button className={`flex-1 rounded-lg py-1.5 font-semibold text-sm ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'}`}>Mensagem</button>
-                        <button className={`flex-1 rounded-lg py-1.5 font-semibold text-sm ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'}`}>Contato</button>
-                      </div>
-                      <div className={`flex justify-around mt-2 pt-2 border-t ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
-                        <div className={`w-1/3 flex justify-center pb-2 border-b-2 ${isDark ? 'border-white' : 'border-black'}`}>
-                          <Grid className="w-6 h-6" />
-                        </div>
-                        <div className="w-1/3 flex justify-center pb-2">
-                          <PlaySquare className={`w-6 h-6 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
-                        </div>
-                        <div className="w-1/3 flex justify-center pb-2">
-                          <UserSquare className={`w-6 h-6 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* GRADE 3x3 SIMULADA (Proporção 4:5 Vertical) CLICÁVEL */}
-                    <div className="grid grid-cols-3 gap-[2px] mt-[2px] mb-6">
-                      <div 
-                        onClick={() => setInstaView('post')}
-                        className="aspect-[4/5] bg-gray-200 relative cursor-pointer group"
-                      >
-                        <img src={post.imageUrl} className="w-full h-full object-cover" alt="Thumb" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <span className="text-white font-semibold text-sm px-2 text-center drop-shadow-md">Ver publicação</span>
-                        </div>
-                      </div>
-                      <div className={`aspect-[4/5] flex flex-col items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}>
-                        <MoreHorizontal className={`w-6 h-6 ${isDark ? 'text-gray-700' : 'text-gray-300'}`} />
-                      </div>
-                      <div className={`aspect-[4/5] flex flex-col items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}>
-                        <MoreHorizontal className={`w-6 h-6 ${isDark ? 'text-gray-700' : 'text-gray-300'}`} />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  // TELA DA PUBLICAÇÃO EXPANDIDA
-                  <div className={`flex flex-col h-full min-h-[500px] animate-in slide-in-from-right-8 duration-300 ${isDark ? 'bg-black' : 'bg-white'}`}>
-                    {/* Header de navegação "Voltar" */}
-                    <div className={`flex items-center p-3 border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
-                      <button 
-                        onClick={() => setInstaView('profile')} 
-                        className={`p-1.5 -ml-1.5 rounded-full transition-colors ${isDark ? 'hover:bg-gray-900' : 'hover:bg-gray-100'}`}
-                      >
-                        <ChevronLeft className="w-6 h-6" />
-                      </button>
-                      <span className="font-bold flex-1 text-center mr-7">Publicações</span>
-                    </div>
-
-                    {/* Post Individual */}
-                    <div className="p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full border border-gray-200 bg-white flex items-center justify-center p-0.5">
-                          <img src={post.avatar} alt="Avatar" className="w-full h-full object-contain rounded-full" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-semibold leading-tight text-sm">{instaProfile.username}</span>
-                        </div>
-                      </div>
-                      <MoreHorizontal className="w-5 h-5" />
-                    </div>
-                    <div className="w-full bg-[#0F172A] flex items-center justify-center border-y border-gray-800/20">
-                      <img 
-                        src={post.imageUrl} 
-                        onError={(e) => handleImageError(e, post.fallbackUrl)}
-                        alt="Post view" 
-                        className="w-full object-contain max-h-[500px]"
-                      />
-                    </div>
-                    <div className="p-3 flex justify-between items-center">
-                      <div className="flex gap-4">
-                        <Heart className="w-6 h-6 hover:text-gray-500 cursor-pointer" />
-                        <MessageCircle className="w-6 h-6 hover:text-gray-500 cursor-pointer" />
-                        <Send className="w-6 h-6 hover:text-gray-500 cursor-pointer" />
-                      </div>
-                      <Bookmark className="w-6 h-6 hover:text-gray-500 cursor-pointer" />
-                    </div>
-                    <div className="px-3 pb-6">
-                      <p className="font-semibold mb-1 text-sm">34 curtidas</p>
-                      <p className="whitespace-pre-wrap leading-snug text-sm">
-                        <span className="font-semibold mr-2">{instaProfile.username}</span>
-                        {post.caption}
-                      </p>
-                      <p className={`text-[10px] mt-2 uppercase tracking-wide ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Aguardando aprovação</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* --- MOCKUP LINKEDIN --- */}
-            {activeTab === 'linkedin' && (
-              <div className={`max-w-[500px] w-full rounded-lg shadow-sm border overflow-hidden font-sans text-[14px] transition-colors duration-300 ${isDark ? 'bg-[#1D2226] border-gray-700 text-white' : 'bg-white border-[#E0DFDC] text-gray-900'}`}>
-                <div className="px-4 pt-3 pb-1 flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-12 h-12 rounded-full border border-gray-200 bg-white p-1">
-                      <img src={post.avatar} alt="Avatar" className="w-full h-full object-contain" />
-                    </div>
-                    <div className="flex flex-col leading-tight">
-                      <span className="font-semibold hover:text-blue-500 cursor-pointer">{post.author}</span>
-                      <span className={`text-[12px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{post.role}</span>
-                      <span className={`text-[12px] flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Rascunho • <Globe className="w-3 h-3" /></span>
-                    </div>
-                  </div>
-                </div>
-                <div className="px-4 py-2 text-sm whitespace-pre-wrap leading-snug">
-                  {post.caption}
-                </div>
-                <div className={`mt-1 border-y ${isDark ? 'bg-[#000000] border-gray-800' : 'bg-[#F3F2EF] border-[#E0DFDC]'}`}>
-                  <img 
-                    src={post.imageUrl} 
-                    onError={(e) => handleImageError(e, post.fallbackUrl)}
-                    alt="Post view" 
-                    className="w-full object-contain max-h-[500px]"
-                  />
-                </div>
-                <div className="px-2 py-1 flex justify-between">
-                  <button className={`flex-1 flex justify-center items-center gap-2 p-3 rounded-md transition text-sm font-semibold ${isDark ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-500 hover:bg-[#F3F2EF]'}`}>
-                    <ThumbsUp className="w-5 h-5" /> Gostei
-                  </button>
-                  <button className={`flex-1 flex justify-center items-center gap-2 p-3 rounded-md transition text-sm font-semibold ${isDark ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-500 hover:bg-[#F3F2EF]'}`}>
-                    <MessageCircle className="w-5 h-5" /> Comentar
-                  </button>
-                  <button className={`flex-1 flex justify-center items-center gap-2 p-3 rounded-md transition text-sm font-semibold ${isDark ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-500 hover:bg-[#F3F2EF]'}`}>
-                    <Send className="w-5 h-5" /> Enviar
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Lado Direito: Informações Estratégicas da Copy */}
-        <div className={`w-full lg:w-1/2 flex flex-col transition-colors duration-300 ${isDark ? 'bg-[#1E293B]' : 'bg-white'}`}>
-          <div className="flex-1 p-6 lg:p-10">
-            <div className="flex justify-between items-start mb-6">
-              <h2 className={`text-2xl lg:text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{post.title}</h2>
-              <span className="bg-yellow-100 text-yellow-800 text-xs font-semibold px-3 py-1 rounded-full border border-yellow-200 whitespace-nowrap">
-                {post.status}
-              </span>
-            </div>
-            
-            <div className="mb-8">
-              <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#55BBDF]' : 'text-[#659368]'}`}>
-                Texto de Publicação (Copy)
-              </h3>
-              <div className={`p-6 rounded-2xl text-sm font-medium leading-relaxed whitespace-pre-wrap shadow-sm border transition-colors duration-300 ${isDark ? 'bg-slate-800 border-slate-700 text-gray-200' : 'bg-gray-50 border-gray-100 text-gray-800'}`}>
-                {post.caption}
-              </div>
-            </div>
-
-            <div className="mb-8">
-              <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-[#00524D]'}`}>
-                <Lightbulb className="w-5 h-5" /> Nota Estratégica para Edição/Marketing
-              </h3>
-              <div className={`p-6 rounded-2xl border relative shadow-sm transition-colors duration-300 ${isDark ? 'bg-amber-900/10 border-amber-900/30 text-amber-100' : 'bg-[#F0FDF4] border-[#CFDDBA] text-[#00524D]'}`}>
-                <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${isDark ? 'bg-amber-500' : 'bg-[#00524D]'}`}></div>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {post.marketingNote}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className={`p-6 lg:p-10 border-t mt-auto shrink-0 transition-colors duration-300 ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-gray-50 border-gray-100'}`}>
-            <button 
-              onClick={() => handleDownload(post.imageUrl, post.fallbackUrl, `${post.title}.jpg`)}
-              className={`w-full flex items-center justify-center gap-2 text-white font-semibold py-4 px-6 rounded-xl transition-all active:scale-95 shadow-md hover:opacity-90 text-lg ${isDark ? 'bg-[#55BBDF] text-slate-900' : 'bg-[#153D56]'}`}
-            >
-              <Download className="w-6 h-6" />
-              Baixar Imagem Base
-            </button>
-            <p className={`text-center text-sm mt-4 font-medium ${isDark ? 'text-slate-400' : 'text-[#659368]'}`}>
-              Faça o download do arquivo base para a edição do post final.
-            </p>
-          </div>
-        </div>
-
-      </div>
-
-      {/* FOOTER DO POST: Contato, Aprovação e Feedback Atrelado ao Post */}
-      <PostFeedback postId={post.id} isDark={isDark} user={user} />
-
-    </article>
-  );
-};
-
-export default function App() {
-  const [isDark, setIsDark] = useState(false);
-  const [user, setUser] = useState(null);
-
-  const toggleDarkMode = () => setIsDark(!isDark);
-
-  // Inicializa Autenticação Globalmente
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #F0F4F8; /* Fallback */
         }
-      } catch (e) {
-        console.error("Erro na inicialização da Auth", e);
-      }
-    };
-    initAuth();
+        /* Utilitário para esconder em mobile se necessário */
+        @media (max-width: 768px) {
+            .md-show { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'https://esm.sh/react@18';
+        import { createRoot } from 'https://esm.sh/react-dom@18/client';
+        
+        // Importando ícones do Lucide
+        import {
+            Download, Instagram, Linkedin, Heart, MessageCircle, Send, Bookmark,
+            ThumbsUp, Repeat2, Lightbulb, MoreHorizontal, Globe, Moon, Sun,
+            Grid, PlaySquare, UserSquare, Link as LinkIcon, Mail, Phone,
+            MessageSquare, CheckCircle2, ChevronLeft, LogOut, ChevronDown,
+            FileText, Clock, AlertCircle, Check, X, Zap, Eye, Copy, ExternalLink
+        } from 'https://esm.sh/lucide-react@0.292.0';
 
-  const handleGoogleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Erro ao logar com o Google", error);
-      alert("Não foi possível abrir o popup do Google. Você está acessando como visitante.");
-    }
-  };
+        // Importando Firebase
+        import { initializeApp } from 'https://esm.sh/firebase@10.6.0/app';
+        import {
+            getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously,
+            GoogleAuthProvider, signInWithPopup, signOut
+        } from 'https://esm.sh/firebase@10.6.0/auth';
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from 'https://esm.sh/firebase@10.6.0/firestore';
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    await signInAnonymously(auth);
-  };
+        // Cole as chaves do seu Firebase aqui caso for usar fora de um ambiente injetado
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            // apiKey: "SUA_API_KEY",
+            // authDomain: "SEU_DOMAIN",
+            // projectId: "SEU_PROJECT_ID"
+        };
+        
+        // Prevenir inicialização com config vazia para não quebrar a UI
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch(e) {
+            console.warn("Firebase não configurado completamente. Certifique-se de adicionar suas credenciais.");
+        }
 
-  return (
-    <div className={`min-h-screen font-sans transition-colors duration-300 ${isDark ? 'bg-[#0F172A] text-slate-200' : 'bg-[#F8F9FA] text-[#153D56]'}`}>
-      
-      {/* Header com Sistema de Login Embutido */}
-      <header className={`shadow-sm sticky top-0 z-50 border-b transition-colors duration-300 ${isDark ? 'bg-[#1E293B] border-slate-700' : 'bg-white border-[#CFDDBA]'}`}>
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-          
-          <div className="flex items-center gap-4">
-            <img 
-              src={logoUrl} 
-              alt="Hidrogest Copywriting" 
-              className={`h-16 object-contain transition-all ${isDark ? 'brightness-0 invert opacity-90' : ''}`} 
-            />
-            <div className={`hidden md:block pl-4 border-l ${isDark ? 'border-slate-600' : 'border-gray-200'}`}>
-              <h1 className="font-bold text-lg leading-tight">Sistema de Aprovação</h1>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#659368]'}`}>Copywriting & Estratégia de Conteúdo</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            {/* Status do Usuário / Botão de Login */}
-            {user && !user.isAnonymous ? (
-              <div className={`flex items-center gap-3 px-3 py-1.5 rounded-full border ${isDark ? 'border-slate-600 bg-slate-800' : 'border-gray-200 bg-gray-50'}`}>
-                <img src={user.photoURL} alt="User" className="w-6 h-6 rounded-full" />
-                <span className={`text-sm font-semibold hidden md:block ${isDark ? 'text-slate-200' : 'text-gray-700'}`}>{user.displayName?.split(' ')[0]}</span>
-                <button onClick={handleLogout} className={`text-xs underline ml-2 ${isDark ? 'text-slate-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}>Sair</button>
-              </div>
-            ) : (
-              <button 
-                onClick={handleGoogleLogin}
-                className="flex items-center gap-2 bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 font-bold py-1.5 px-4 rounded-full transition-all shadow-sm text-sm"
-              >
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-4 h-4" />
-                Entrar equipe
-              </button>
-            )}
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sistema-aprovacao-copy';
 
-            <button 
-              onClick={toggleDarkMode}
-              className={`p-2 rounded-full transition-colors ${isDark ? 'bg-slate-700 hover:bg-slate-600 text-yellow-400' : 'bg-gray-100 hover:bg-gray-200 text-slate-700'}`}
-              title={isDark ? "Mudar para Modo Claro" : "Mudar para Modo Escuro"}
-            >
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-          </div>
+        const brand = {
+            lightBlue: '#55BBDF',
+            darkBlue: '#153D56',
+            darkGreen: '#00524D',
+            mediumGreen: '#659368',
+            lightGreen: '#CFDDBA',
+        };
 
-        </div>
-      </header>
+        const logoUrl = "https://drive.google.com/thumbnail?id=1N19BuQD2EAwpsGJBu85561u67orNR92h&sz=w1000";
 
-      {/* Main Content - Lista de Aprovação */}
-      <main className="max-w-7xl mx-auto px-4 py-12">
-        <div className="max-w-5xl mx-auto">
-          
-          <div className="mb-8">
-            <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-[#153D56]'}`}>Publicações Aguardando Aprovação</h2>
-            <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Analise o mockup da copy abaixo, leia a nota estratégica e comunique-se com o produtor no final do card.</p>
-          </div>
+        const instaProfile = {
+            username: "hidrogest_engenharia",
+            name: "Hidrogest Engenharia e Consultoria",
+            posts: 74,
+            followers: 295,
+            following: 88,
+            category: "Produto/serviço",
+            bio: ["• Batimetria", "• Hidrometria", "• Monitoramento e qualidade de água", "• Operação e Manut. de equipamento... mais"],
+            address: "Rua Contria, 769, Alto Barroca., Belo Horizonte, Brazil 30431-028",
+            link: "linktr.ee/hidrogest"
+        };
 
-          {/* Feed de Posts para Aprovação */}
-          {portfolioData.map((post) => (
-            <PostItem key={post.id} post={post} isDark={isDark} user={user} />
-          ))}
+        const portfolioData = [
+            {
+                id: 1,
+                title: "Bacia Hidrográfica",
+                platform: "Instagram + LinkedIn",
+                status: "pending",
+                statusLabel: "Aguardando Avaliação",
+                author: "Hidrogest Engenharia e Consultoria",
+                role: "Engenharia e Meio Ambiente",
+                avatar: "https://drive.google.com/thumbnail?id=1N19BuQD2EAwpsGJBu85561u67orNR92h&sz=w200",
+                caption: `Imagine um grande funil esculpido pelo próprio relevo: essa é a dinâmica de uma bacia hidrográfica! 💧\n\nA topografia do terreno atua como um sistema de captação. Toda a água da chuva que cai nessa área converge pelas encostas até um único ponto de saída, formando o nosso rio principal. É exatamente esse "efeito funil" que dita o equilíbrio dos nossos ecossistemas e garante o abastecimento de água.\n\nVocê sabe a qual bacia hidrográfica o seu município pertence? Conta aqui para mim! 👇\n\n#GeografiaFisica #RecursosHidricos #BaciasHidrograficas #GestaoAmbiental`,
+                marketingNote: `Sugiro mantermos o termo "funil" na copy por uma questão estratégica de retenção e economia cognitiva. \n\nEm vídeos curtos, precisamos de um gancho visual imediato nos primeiros segundos, e a palavra "funil" traduz a complexidade topográfica de uma bacia hidrográfica em uma imagem mental instantânea que qualquer pessoa compreende sem esforço. Isso prende a atenção do usuário, facilita muito a inserção de elementos gráficos na edição do Reel e tangibiliza a dinâmica do relevo de forma didática.\n\nA ideia é usar essa analogia apenas como uma isca inicial para impedir que o público pule o vídeo e, logo na sequência, entregar a autoridade e o conceito técnico correto, garantindo engajamento sem perder o tom profissional.`,
+                imageUrl: "https://drive.google.com/thumbnail?id=10YhCxnMMyVKty0uUbGLeuR7hIOFxe7uz&sz=w1000",
+                fallbackUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1080&auto=format&fit=crop",
+                date: "15 Mai 2025"
+            }
+        ];
 
-          <footer className={`mt-12 text-center text-sm font-medium pb-8 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
-            Sistema de Produção e Aprovação de Conteúdo • Desenvolvido para Felipe Canelli
-          </footer>
-        </div>
-      </main>
-    </div>
-  );
-}
+        const StatusBadge = ({ status, label, isDark }) => {
+            const map = {
+                pending:  { bg: isDark ? 'rgba(251,191,36,0.12)' : '#FEFCE8', color: isDark ? '#FCD34D' : '#92400E', dot: '#F59E0B', border: isDark ? 'rgba(251,191,36,0.25)' : '#FDE68A' },
+                approved: { bg: isDark ? 'rgba(52,211,153,0.12)' : '#F0FDF4', color: isDark ? '#6EE7B7' : '#065F46', dot: '#10B981', border: isDark ? 'rgba(52,211,153,0.25)' : '#A7F3D0' },
+                rejected: { bg: isDark ? 'rgba(248,113,113,0.12)' : '#FFF1F2', color: isDark ? '#FCA5A5' : '#881337', dot: '#EF4444', border: isDark ? 'rgba(248,113,113,0.25)' : '#FECDD3' },
+            };
+            const s = map[status] || map.pending;
+            return (
+                <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: s.bg, color: s.color,
+                    border: `1px solid ${s.border}`,
+                    padding: '4px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap'
+                }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
+                    {label}
+                </span>
+            );
+        };
+
+        const handleDownload = async (url, fallbackUrl, filename) => {
+            try {
+                const r = await fetch(url);
+                if (!r.ok) throw new Error();
+                const blob = await r.blob();
+                const bu = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = bu; a.download = filename || 'post.jpg';
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a); window.URL.revokeObjectURL(bu);
+            } catch { window.open(url, '_blank'); }
+        };
+
+        const handleImgErr = (e, fb) => { e.target.src = fb; };
+
+        const useCopyToast = () => {
+            const [copied, setCopied] = useState(false);
+            const copy = (text) => {
+                navigator.clipboard.writeText(text).then(() => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                });
+            };
+            return { copied, copy };
+        };
+
+        const PostFeedback = ({ postId, isDark, user }) => {
+            const [comments, setComments] = useState([]);
+            const [newComment, setNewComment] = useState('');
+            const [sending, setSending] = useState(false);
+
+            useEffect(() => {
+                if (!user || !db) return;
+                try {
+                    const ref = collection(db, 'artifacts', appId, 'public', 'data', `post_comments_${postId}`);
+                    const unsub = onSnapshot(ref, snap => {
+                        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                        data.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+                        setComments(data);
+                    }, err => console.error(err));
+                    return () => unsub();
+                } catch(e) { console.error("Firestore não inicializado corretamente", e); }
+            }, [user, postId]);
+
+            const submit = async (e) => {
+                e.preventDefault();
+                if (!newComment.trim() || !user || !db) return;
+                setSending(true);
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', `post_comments_${postId}`), {
+                        text: newComment,
+                        userId: user.uid,
+                        userName: user.isAnonymous ? 'Visitante' : (user.displayName || 'Usuário'),
+                        userPhoto: user.photoURL || `https://ui-avatars.com/api/?name=${(user.displayName || 'U').charAt(0)}&background=153D56&color=fff`,
+                        createdAt: serverTimestamp()
+                    });
+                    setNewComment('');
+                } catch (e) { console.error(e); }
+                setSending(false);
+            };
+
+            const isGoogle = user && !user.isAnonymous;
+            const cardBg = isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC';
+            const border = isDark ? 'rgba(255,255,255,0.07)' : '#E2E8F0';
+            const textSecondary = isDark ? '#94A3B8' : '#64748B';
+
+            return (
+                <div style={{ borderTop: `1px solid ${border}` }}>
+                    {/* Approval bar */}
+                    <div style={{
+                        display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between',
+                        padding: '20px 28px',
+                        background: isDark ? 'rgba(85,187,223,0.06)' : 'rgba(0,82,77,0.04)',
+                        borderBottom: `1px solid ${border}`
+                    }}>
+                        <div>
+                            <p style={{ fontWeight: 700, fontSize: 15, color: isDark ? '#E2E8F0' : '#0F172A', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                                <CheckCircle2 size={17} style={{ color: '#10B981' }} />
+                                Aprovar ou Solicitar Ajustes
+                            </p>
+                            <p style={{ fontSize: 13, color: textSecondary, margin: '4px 0 0' }}>
+                                Comunique-se com o produtor diretamente pelo canal preferido.
+                            </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <a
+                                href={`https://wa.me/5531985547183?text=Olá Felipe! Sobre o post ${postId}...`}
+                                target="_blank" rel="noreferrer"
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 7,
+                                    background: '#22C55E', color: '#fff',
+                                    padding: '9px 18px', borderRadius: 10, fontWeight: 700, fontSize: 13,
+                                    textDecoration: 'none', transition: 'opacity .15s'
+                                }}
+                            >
+                                <Phone size={14} /> WhatsApp
+                            </a>
+                            <a
+                                href={`mailto:canellifelipe@gmail.com?subject=Aprovação - Post ${postId}`}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 7,
+                                    background: isDark ? 'rgba(255,255,255,0.07)' : '#fff',
+                                    color: isDark ? '#E2E8F0' : '#153D56',
+                                    border: `1px solid ${border}`,
+                                    padding: '9px 18px', borderRadius: 10, fontWeight: 700, fontSize: 13,
+                                    textDecoration: 'none'
+                                }}
+                            >
+                                <Mail size={14} /> E-mail
+                            </a>
+                        </div>
+                    </div>
+
+                    {/* Comments */}
+                    <div style={{ padding: '24px 28px' }}>
+                        <h4 style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#E2E8F0' : '#1E293B', display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 18px' }}>
+                            <MessageSquare size={15} style={{ color: isDark ? '#55BBDF' : '#00524D' }} />
+                            Comentários & Notas Internas
+                        </h4>
+
+                        <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                            {!isGoogle ? (
+                                <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                                    <p style={{ fontSize: 13, color: textSecondary, margin: 0 }}>
+                                        Faça login com Google para adicionar notas ou pedir ajustes.
+                                    </p>
+                                </div>
+                            ) : (
+                                <form onSubmit={submit}>
+                                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                                        <img src={user.photoURL} alt="" style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0 }} />
+                                        <div style={{ flex: 1 }}>
+                                            <textarea
+                                                value={newComment}
+                                                onChange={e => setNewComment(e.target.value)}
+                                                placeholder="Adicione uma nota ou pedido de ajuste..."
+                                                style={{
+                                                    width: '100%', padding: '10px 14px', borderRadius: 10,
+                                                    border: `1px solid ${border}`,
+                                                    background: isDark ? 'rgba(15,23,42,0.6)' : '#fff',
+                                                    color: isDark ? '#E2E8F0' : '#1E293B',
+                                                    fontSize: 13, resize: 'none', height: 76, outline: 'none',
+                                                    fontFamily: 'inherit', boxSizing: 'border-box'
+                                                }}
+                                            />
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                                                <button
+                                                    type="submit"
+                                                    disabled={sending || !newComment.trim()}
+                                                    style={{
+                                                        padding: '8px 18px', borderRadius: 9, fontWeight: 700, fontSize: 13,
+                                                        background: (!sending && newComment.trim())
+                                                            ? (isDark ? '#55BBDF' : '#153D56') : (isDark ? '#334155' : '#CBD5E1'),
+                                                        color: (!sending && newComment.trim())
+                                                            ? (isDark ? '#0F172A' : '#fff') : (isDark ? '#64748B' : '#94A3B8'),
+                                                        border: 'none', cursor: sending || !newComment.trim() ? 'not-allowed' : 'pointer',
+                                                        transition: 'all .15s'
+                                                    }}
+                                                >
+                                                    {sending ? 'Enviando…' : 'Postar Nota'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {comments.length === 0 ? (
+                                <p style={{ fontSize: 13, color: textSecondary, fontStyle: 'italic', margin: 0 }}>
+                                    Nenhuma nota ainda para esta publicação.
+                                </p>
+                            ) : comments.map(c => (
+                                <div key={c.id} style={{
+                                    display: 'flex', gap: 12, padding: '14px 16px',
+                                    background: isDark ? 'rgba(255,255,255,0.03)' : '#fff',
+                                    border: `1px solid ${border}`, borderRadius: 12
+                                }}>
+                                    <img src={c.userPhoto} alt="" style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
+                                    <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                            <span style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#E2E8F0' : '#1E293B' }}>{c.userName}</span>
+                                            <span style={{ fontSize: 11, color: textSecondary }}>
+                                                {c.createdAt ? new Date(c.createdAt.toMillis()).toLocaleString('pt-BR') : 'agora'}
+                                            </span>
+                                        </div>
+                                        <p style={{ fontSize: 13, color: isDark ? '#CBD5E1' : '#475569', margin: 0, lineHeight: 1.6 }}>{c.text}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const InstagramMockup = ({ post, isDark }) => {
+            const [view, setView] = useState('profile');
+            const bg = isDark ? '#000' : '#fff';
+            const surface = isDark ? '#1C1C1E' : '#F5F5F5';
+            const border = isDark ? '#2C2C2E' : '#DBDBDB';
+            const text = isDark ? '#fff' : '#000';
+            const muted = isDark ? '#8E8E8E' : '#8E8E8E';
+
+            return (
+                <div style={{
+                    background: bg, borderRadius: 16, border: `1px solid ${border}`,
+                    overflow: 'hidden', width: '100%', maxWidth: 400, margin: '0 auto',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: text
+                }}>
+                    {view === 'profile' ? (
+                        <>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px 16px', borderBottom: `1px solid ${border}`, position: 'relative' }}>
+                                <span style={{ fontWeight: 700, fontSize: 16 }}>{instaProfile.username}</span>
+                                <ChevronDown size={16} style={{ position: 'absolute', right: 16 }} />
+                            </div>
+                            <div style={{ padding: '16px 16px 8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 14 }}>
+                                    <div style={{ width: 80, height: 80, borderRadius: '50%', padding: 2, background: 'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', flexShrink: 0 }}>
+                                        <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: bg, padding: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <img src={post.avatar} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'contain' }} />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 24, flex: 1 }}>
+                                        {[['74','posts'],['295','seguidores'],['88','seguindo']].map(([n,l]) => (
+                                            <div key={l} style={{ textAlign: 'center', flex: 1 }}>
+                                                <div style={{ fontWeight: 700, fontSize: 16 }}>{n}</div>
+                                                <div style={{ fontSize: 12, color: muted }}>{l}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div style={{ marginBottom: 12 }}>
+                                    <p style={{ fontWeight: 700, fontSize: 13, margin: '0 0 2px' }}>{instaProfile.name}</p>
+                                    <p style={{ fontSize: 12, color: muted, margin: '0 0 4px' }}>{instaProfile.category}</p>
+                                    <p style={{ fontSize: 13, margin: '0 0 4px', lineHeight: 1.4 }}>{instaProfile.bio.join('\n')}</p>
+                                    <a href="#" style={{ fontSize: 13, color: '#00376B', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <LinkIcon size={12} />{instaProfile.link}
+                                    </a>
+                                </div>
+                                <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+                                    {['Seguindo','Mensagem','Contato'].map(b => (
+                                        <button key={b} style={{ flex: 1, padding: '6px 0', borderRadius: 8, border: `1px solid ${border}`, background: surface, color: text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{b}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', borderTop: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
+                                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '12px 0', borderBottom: `2px solid ${text}` }}><Grid size={22} /></div>
+                                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '12px 0', color: muted }}><PlaySquare size={22} /></div>
+                                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '12px 0', color: muted }}><UserSquare size={22} /></div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 2 }}>
+                                <div onClick={() => setView('post')} style={{ aspectRatio: '4/5', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
+                                    <img src={post.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s' }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.35)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0)'}
+                                    >
+                                        <Eye size={22} color="#fff" style={{ opacity: 0.9 }} />
+                                    </div>
+                                </div>
+                                {[1,2].map(i => <div key={i} style={{ aspectRatio: '4/5', background: surface }} />)}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: `1px solid ${border}` }}>
+                                <button onClick={() => setView('profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: text, padding: '4px 8px 4px 0', display: 'flex' }}>
+                                    <ChevronLeft size={22} />
+                                </button>
+                                <span style={{ fontWeight: 700, fontSize: 15, flex: 1, textAlign: 'center', marginRight: 30 }}>Publicações</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
+                                <img src={post.avatar} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'contain', border: `1px solid ${border}` }} />
+                                <span style={{ fontWeight: 700, fontSize: 13 }}>{instaProfile.username}</span>
+                                <MoreHorizontal size={16} style={{ marginLeft: 'auto', color: muted }} />
+                            </div>
+                            <div style={{ background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <img src={post.imageUrl} onError={e => handleImgErr(e, post.fallbackUrl)} alt="" style={{ width: '100%', objectFit: 'contain', maxHeight: 420 }} />
+                            </div>
+                            <div style={{ padding: '10px 14px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                    <div style={{ display: 'flex', gap: 16 }}>
+                                        <Heart size={24} style={{ cursor: 'pointer' }} />
+                                        <MessageCircle size={24} style={{ cursor: 'pointer' }} />
+                                        <Send size={24} style={{ cursor: 'pointer' }} />
+                                    </div>
+                                    <Bookmark size={24} style={{ cursor: 'pointer' }} />
+                                </div>
+                                <p style={{ fontWeight: 700, fontSize: 13, margin: '0 0 4px' }}>34 curtidas</p>
+                                <p style={{ fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                                    <strong>{instaProfile.username} </strong>{post.caption}
+                                </p>
+                                <p style={{ fontSize: 11, color: muted, marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Aguardando aprovação</p>
+                            </div>
+                        </>
+                    )}
+                </div>
+            );
+        };
+
+        const LinkedinMockup = ({ post, isDark }) => {
+            const bg = isDark ? '#1D2226' : '#fff';
+            const border = isDark ? '#38434F' : '#E0DFDC';
+            const text = isDark ? '#fff' : '#000';
+            const muted = isDark ? '#8B9197' : '#666';
+
+            return (
+                <div style={{
+                    background: bg, border: `1px solid ${border}`, borderRadius: 12,
+                    overflow: 'hidden', width: '100%', maxWidth: 500, margin: '0 auto',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: text
+                }}>
+                    <div style={{ padding: '14px 16px 8px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                        <img src={post.avatar} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'contain', border: `1px solid ${border}`, flexShrink: 0 }} />
+                        <div>
+                            <p style={{ fontWeight: 600, fontSize: 14, margin: '0 0 2px', color: isDark ? '#70B5F9' : '#0073B1', cursor: 'pointer' }}>{post.author}</p>
+                            <p style={{ fontSize: 12, color: muted, margin: '0 0 1px' }}>{post.role}</p>
+                            <p style={{ fontSize: 11, color: muted, margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                Rascunho · <Globe size={11} />
+                            </p>
+                        </div>
+                        <MoreHorizontal size={18} style={{ marginLeft: 'auto', color: muted, cursor: 'pointer' }} />
+                    </div>
+                    <p style={{ fontSize: 13, padding: '0 16px 12px', margin: 0, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{post.caption}</p>
+                    <div style={{ borderTop: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
+                        <img src={post.imageUrl} onError={e => handleImgErr(e, post.fallbackUrl)} alt="" style={{ width: '100%', objectFit: 'contain', maxHeight: 400, background: isDark ? '#000' : '#F3F2EF', display: 'block' }} />
+                    </div>
+                    <div style={{ display: 'flex', padding: '2px 8px' }}>
+                        {[['Gostei', ThumbsUp], ['Comentar', MessageCircle], ['Enviar', Send]].map(([label, Icon]) => (
+                            <button key={label} style={{
+                                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                padding: '11px 4px', background: 'none', border: 'none', cursor: 'pointer',
+                                color: muted, fontSize: 13, fontWeight: 600, borderRadius: 8
+                            }}>
+                                <Icon size={18} />{label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const PostItem = ({ post, isDark, user }) => {
+            const [tab, setTab] = useState('instagram');
+            const { copied, copy } = useCopyToast();
+            const [expanded, setExpanded] = useState(false);
+
+            const border = isDark ? 'rgba(255,255,255,0.07)' : '#E2E8F0';
+            const surface = isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC';
+            const textPrimary = isDark ? '#F1F5F9' : '#0F172A';
+            const textSecondary = isDark ? '#94A3B8' : '#64748B';
+
+            const previewText = post.caption.slice(0, 120) + (post.caption.length > 120 ? '…' : '');
+
+            return (
+                <article style={{
+                    borderRadius: 20, border: `1px solid ${border}`,
+                    overflow: 'hidden', marginBottom: 40,
+                    background: isDark ? '#151F2E' : '#fff',
+                    boxShadow: isDark ? '0 4px 40px rgba(0,0,0,0.4)' : '0 4px 32px rgba(15,23,42,0.06)',
+                    transition: 'box-shadow .2s'
+                }}>
+                    <div style={{
+                        display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between',
+                        padding: '20px 24px', borderBottom: `1px solid ${border}`
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                            <div style={{
+                                width: 42, height: 42, borderRadius: 12, overflow: 'hidden', flexShrink: 0,
+                                background: surface, border: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                                <img src={post.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                            </div>
+                            <div>
+                                <p style={{ fontWeight: 700, fontSize: 15, color: textPrimary, margin: 0 }}>{post.title}</p>
+                                <p style={{ fontSize: 12, color: textSecondary, margin: '2px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Clock size={12} />{post.date} · {post.platform}
+                                </p>
+                            </div>
+                        </div>
+                        <StatusBadge status={post.status} label={post.statusLabel} isDark={isDark} />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+                        <div style={{ background: isDark ? '#0D1520' : '#F1F5F9', borderRight: `1px solid ${border}` }}>
+                            <div style={{ display: 'flex', borderBottom: `1px solid ${border}`, background: isDark ? '#151F2E' : '#fff' }}>
+                                {[['instagram', Instagram, 'Instagram'], ['linkedin', Linkedin, 'LinkedIn']].map(([id, Icon, label]) => (
+                                    <button key={id} onClick={() => setTab(id)} style={{
+                                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                                        padding: '14px 0', background: 'none', border: 'none', cursor: 'pointer',
+                                        fontWeight: 700, fontSize: 13, transition: 'all .15s',
+                                        borderBottom: tab === id ? `2px solid ${isDark ? '#55BBDF' : '#00524D'}` : '2px solid transparent',
+                                        color: tab === id ? (isDark ? '#55BBDF' : '#00524D') : textSecondary
+                                    }}>
+                                        <Icon size={15} />{label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div style={{ padding: '24px 16px', display: 'flex', justifyContent: 'center', minHeight: 500, overflowY: 'auto' }}>
+                                {tab === 'instagram' ? <InstagramMockup post={post} isDark={isDark} /> : <LinkedinMockup post={post} isDark={isDark} />}
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ flex: 1, padding: '28px 28px 0' }}>
+                                <div style={{ marginBottom: 28 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: isDark ? '#55BBDF' : '#00524D', margin: 0 }}>
+                                            Texto de Publicação
+                                        </p>
+                                        <button onClick={() => copy(post.caption)} style={{
+                                            display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
+                                            background: surface, border: `1px solid ${border}`, borderRadius: 8,
+                                            cursor: 'pointer', fontSize: 12, fontWeight: 600, color: textSecondary,
+                                            transition: 'all .15s'
+                                        }}>
+                                            {copied ? <Check size={13} style={{ color: '#10B981' }} /> : <Copy size={13} />}
+                                            {copied ? 'Copiado!' : 'Copiar'}
+                                        </button>
+                                    </div>
+                                    <div style={{
+                                        background: surface, border: `1px solid ${border}`, borderRadius: 14,
+                                        padding: '18px 20px', fontSize: 13, lineHeight: 1.7, color: textPrimary,
+                                        whiteSpace: 'pre-wrap', position: 'relative'
+                                    }}>
+                                        {expanded ? post.caption : previewText}
+                                        {post.caption.length > 120 && (
+                                            <button onClick={() => setExpanded(!expanded)} style={{
+                                                background: 'none', border: 'none', cursor: 'pointer',
+                                                color: isDark ? '#55BBDF' : '#00524D', fontSize: 13, fontWeight: 700, padding: '2px 0', display: 'block', marginTop: 4
+                                            }}>
+                                                {expanded ? 'Ver menos ↑' : 'Ver completo ↓'}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div style={{ marginBottom: 28 }}>
+                                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: isDark ? '#FCD34D' : '#92400E', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 7 }}>
+                                        <Lightbulb size={13} /> Nota Estratégica
+                                    </p>
+                                    <div style={{
+                                        borderRadius: 14, padding: '18px 20px',
+                                        background: isDark ? 'rgba(251,191,36,0.06)' : '#FFFBEB',
+                                        border: `1px solid ${isDark ? 'rgba(251,191,36,0.15)' : '#FDE68A'}`,
+                                        position: 'relative', paddingLeft: 24
+                                    }}>
+                                        <div style={{
+                                            position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
+                                            borderRadius: '14px 0 0 14px',
+                                            background: isDark ? '#FCD34D' : '#F59E0B'
+                                        }} />
+                                        <p style={{ fontSize: 13, lineHeight: 1.7, color: isDark ? '#FEF3C7' : '#78350F', margin: 0, whiteSpace: 'pre-wrap' }}>
+                                            {post.marketingNote}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ padding: '20px 28px 28px', borderTop: `1px solid ${border}`, background: isDark ? 'rgba(255,255,255,0.02)' : '#FAFAFA' }}>
+                                <button
+                                    onClick={() => handleDownload(post.imageUrl, post.fallbackUrl, `${post.title}.jpg`)}
+                                    style={{
+                                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                                        padding: '14px 24px', borderRadius: 14, border: 'none', cursor: 'pointer',
+                                        background: isDark ? '#55BBDF' : '#153D56',
+                                        color: isDark ? '#0F172A' : '#fff',
+                                        fontSize: 15, fontWeight: 700, transition: 'opacity .15s',
+                                        letterSpacing: '-0.01em'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+                                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                                >
+                                    <Download size={18} />
+                                    Baixar Imagem Base
+                                </button>
+                                <p style={{ textAlign: 'center', fontSize: 12, color: textSecondary, margin: '10px 0 0' }}>
+                                    Arquivo para edição final do post
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <PostFeedback postId={post.id} isDark={isDark} user={user} />
+                </article>
+            );
+        };
+
+        function App() {
+            const [isDark, setIsDark] = useState(false);
+            const [user, setUser] = useState(null);
+
+            useEffect(() => {
+                const init = async () => {
+                    try {
+                        if (auth) {
+                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        }
+                    } catch (e) { console.error(e); }
+                };
+                init();
+                if(auth) {
+                    return onAuthStateChanged(auth, setUser);
+                }
+            }, []);
+
+            const loginGoogle = async () => {
+                if(!auth) return alert("Firebase não configurado.");
+                try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+                catch { alert('Não foi possível abrir o popup do Google.'); }
+            };
+
+            const logout = async () => {
+                if(!auth) return;
+                await signOut(auth);
+                await signInAnonymously(auth);
+            };
+
+            const bg = isDark ? '#0D1520' : '#F0F4F8';
+            const headerBg = isDark ? 'rgba(21,31,46,0.95)' : 'rgba(255,255,255,0.95)';
+            const border = isDark ? 'rgba(255,255,255,0.07)' : '#E2E8F0';
+            const textPrimary = isDark ? '#F1F5F9' : '#0F172A';
+            const textSecondary = isDark ? '#94A3B8' : '#64748B';
+
+            const isGoogle = user && !user.isAnonymous;
+
+            return (
+                <div style={{ minHeight: '100vh', background: bg, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', transition: 'background .3s' }}>
+                    <header style={{
+                        position: 'sticky', top: 0, zIndex: 50,
+                        background: headerBg,
+                        backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                        borderBottom: `1px solid ${border}`,
+                        padding: '0 20px'
+                    }}>
+                        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64, gap: 16 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                                <img src={logoUrl} alt="Hidrogest" style={{
+                                    height: 40, objectFit: 'contain',
+                                    filter: isDark ? 'brightness(0) invert(1)' : 'none',
+                                    opacity: isDark ? 0.9 : 1
+                                }} />
+                                <div style={{ borderLeft: `1px solid ${border}`, paddingLeft: 14 }}>
+                                    <p style={{ fontWeight: 800, fontSize: 14, color: textPrimary, margin: 0, lineHeight: 1.2 }}>Sistema de Aprovação</p>
+                                    <p style={{ fontSize: 11, color: textSecondary, margin: 0 }}>Copywriting & Conteúdo</p>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
+                                    background: isDark ? 'rgba(251,191,36,0.1)' : '#FEFCE8',
+                                    border: `1px solid ${isDark ? 'rgba(251,191,36,0.2)' : '#FDE68A'}`,
+                                    borderRadius: 999, fontSize: 12, fontWeight: 700,
+                                    color: isDark ? '#FCD34D' : '#92400E'
+                                }}>
+                                    <AlertCircle size={12} />
+                                    {portfolioData.length} pendente{portfolioData.length !== 1 ? 's' : ''}
+                                </div>
+
+                                {isGoogle ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <img src={user.photoURL} alt="" style={{ width: 32, height: 32, borderRadius: '50%' }} />
+                                        <span style={{ fontSize: 13, fontWeight: 600, color: textPrimary, display: 'none' }} className="md-show">
+                                            {user.displayName?.split(' ')[0]}
+                                        </span>
+                                        <button onClick={logout} style={{
+                                            background: 'none', border: 'none', cursor: 'pointer',
+                                            color: textSecondary, display: 'flex', alignItems: 'center', padding: 4
+                                        }} title="Sair">
+                                            <LogOut size={15} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button onClick={loginGoogle} style={{
+                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        background: isDark ? 'rgba(255,255,255,0.08)' : '#fff',
+                                        border: `1px solid ${border}`, borderRadius: 10,
+                                        padding: '7px 14px', cursor: 'pointer',
+                                        fontSize: 13, fontWeight: 700, color: textPrimary
+                                    }}>
+                                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" style={{ width: 16, height: 16 }} />
+                                        Entrar
+                                    </button>
+                                )}
+
+                                <button onClick={() => setIsDark(!isDark)} style={{
+                                    width: 36, height: 36, borderRadius: 10, border: `1px solid ${border}`,
+                                    background: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9',
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    color: isDark ? '#FCD34D' : '#64748B', transition: 'all .15s'
+                                }}>
+                                    {isDark ? <Sun size={16} /> : <Moon size={16} />}
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main style={{ maxWidth: 1100, margin: '0 auto', padding: '36px 16px 60px' }}>
+                        <div style={{ marginBottom: 32 }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                                <div>
+                                    <h1 style={{ fontSize: 26, fontWeight: 800, color: textPrimary, margin: '0 0 6px', letterSpacing: '-0.02em' }}>
+                                        Publicações para Revisão
+                                    </h1>
+                                    <p style={{ fontSize: 14, color: textSecondary, margin: 0 }}>
+                                        Analise os mockups, leia a nota estratégica e sinalize sua aprovação ou pedido de ajuste.
+                                    </p>
+                                </div>
+                                <div style={{ display: 'flex', gap: 10 }}>
+                                    {[['Pendentes', portfolioData.filter(p => p.status === 'pending').length, '#F59E0B'],
+                                      ['Total', portfolioData.length, isDark ? '#55BBDF' : '#153D56']
+                                    ].map(([label, count, color]) => (
+                                        <div key={label} style={{
+                                            padding: '10px 18px', borderRadius: 12,
+                                            background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
+                                            border: `1px solid ${border}`, textAlign: 'center', minWidth: 80
+                                        }}>
+                                            <p style={{ fontSize: 22, fontWeight: 800, color, margin: 0 }}>{count}</p>
+                                            <p style={{ fontSize: 11, color: textSecondary, margin: 0 }}>{label}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {portfolioData.map(post => (
+                            <PostItem key={post.id} post={post} isDark={isDark} user={user} />
+                        ))}
+
+                        <footer style={{ textAlign: 'center', fontSize: 12, color: isDark ? '#475569' : '#94A3B8', paddingTop: 12 }}>
+                            Sistema de Produção e Aprovação de Conteúdo · Desenvolvido para Felipe Canelli
+                        </footer>
+                    </main>
+                </div>
+            );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
