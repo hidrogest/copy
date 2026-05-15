@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="google-signin-client_id" content="197828557990-h0bavtoiisc0nb15bde97k6922gmrsah.apps.googleusercontent.com">
     <title>Sistema de Aprovação - Hidrogest</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -33,32 +32,26 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
+    <!-- Babel standalone para transpilar React no navegador -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <script type="importmap">
-        {
-            "imports": {
-                "react": "https://esm.sh/react@18.2.0",
-                "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-                "lucide-react": "https://esm.sh/lucide-react@0.292.0"
-            }
-        }
-    </script>
+    <!-- NOTA: O importmap foi removido para garantir compatibilidade com celulares antigos e iOS. 
+         Usaremos imports diretos (URLs) no bloco de script abaixo. -->
 </head>
 <body class="m-0 p-0 antialiased selection:bg-brand-lightBlue selection:text-white">
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect } from 'react';
-        import { createRoot } from 'react-dom/client';
+        import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
+        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
         
         import { 
             Download, Instagram, Linkedin, Heart, MessageCircle, Send, Bookmark, 
             ThumbsUp, Lightbulb, MoreHorizontal, Globe, Moon, Sun, 
             Grid, PlaySquare, UserSquare, Link as LinkIcon, Mail, Phone, 
             MessageSquare, CheckCircle2, ChevronLeft, LogOut, ChevronDown, 
-            Clock, AlertCircle, Check, Copy, Eye 
-        } from 'lucide-react';
+            Clock, AlertCircle, Check, Copy, Eye, X 
+        } from 'https://esm.sh/lucide-react@0.292.0';
 
         // --- INTEGRAÇÃO COM FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -70,19 +63,27 @@
             getFirestore, collection, addDoc, onSnapshot, serverTimestamp 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // Substitua ESTE BLOCO ABAIXO pelas configurações do seu Firebase Console
+        const firebaseConfig = {
+            apiKey: "SUA_API_KEY_AQUI",
+            authDomain: "seu-projeto.firebaseapp.com",
+            projectId: "seu-projeto",
+            storageBucket: "seu-projeto.appspot.com",
+            messagingSenderId: "SEU_MESSAGING_ID",
+            appId: "SEU_APP_ID"
+        };
+
         let app, auth, db;
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
         } catch(e) {
-            console.warn("Aviso: Configuração do Firebase incompleta.", e);
+            console.warn("Aviso: Configuração do Firebase incompleta ou incorreta.", e);
         }
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sistema-aprovacao';
+        const appId = 'sistema-aprovacao';
 
-        // --- DADOS DA APLICAÇÃO ---
         const logoUrl = "https://drive.google.com/thumbnail?id=1N19BuQD2EAwpsGJBu85561u67orNR92h&sz=w1000";
 
         const instaProfile = {
@@ -115,7 +116,6 @@
             }
         ];
 
-        // --- UTILITÁRIOS ---
         const handleDownload = async (url, fallbackUrl, filename) => {
             try {
                 const response = await fetch(url);
@@ -131,12 +131,17 @@
 
         const handleImgErr = (e, fallback) => { e.target.src = fallback; };
 
+        // Função melhorada para copiar texto no mobile sem abrir teclado
         const useCopyToast = () => {
             const [copied, setCopied] = useState(false);
             const copy = (text) => {
-                // Alternativa de cópia via document.execCommand para suportar iFrames restritos
                 const textArea = document.createElement("textarea");
                 textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.top = '-9999px';
+                textArea.style.left = '-9999px';
+                textArea.setAttribute('readonly', '');
+                
                 document.body.appendChild(textArea);
                 textArea.select();
                 try {
@@ -552,6 +557,7 @@
         function App() {
             const [isDark, setIsDark] = useState(false);
             const [user, setUser] = useState(null);
+            const [authError, setAuthError] = useState(''); // Estado para exibir mensagens de erro do Firebase sem usar alert()
 
             // Gerencia classe Dark Mode no root e no tailwind
             useEffect(() => {
@@ -567,13 +573,9 @@
                 const init = async () => {
                     try {
                         if (auth) {
-                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                await signInWithCustomToken(auth, __initial_auth_token);
-                            } else {
-                                await signInAnonymously(auth);
-                            }
+                            await signInAnonymously(auth);
                         }
-                    } catch (e) { console.error("Erro na autenticação", e); }
+                    } catch (e) { console.error("Erro na autenticação anônima", e); }
                 };
                 init();
                 
@@ -583,15 +585,19 @@
             }, []);
 
             const loginGoogle = async () => {
-                if(!auth) return;
+                setAuthError(''); // Limpa erros passados
+                if(!auth) {
+                    setAuthError("Erro: O Firebase não está configurado. Insira suas credenciais em 'firebaseConfig' no código.");
+                    return;
+                }
                 try {
                     const provider = new GoogleAuthProvider();
-                    provider.setCustomParameters({
-                        client_id: '197828557990-h0bavtoiisc0nb15bde97k6922gmrsah.apps.googleusercontent.com'
-                    });
                     await signInWithPopup(auth, provider);
                 }
-                catch(e) { console.error('Erro de popup', e); }
+                catch(e) { 
+                    console.error('Erro de login:', e); 
+                    setAuthError('Falha ao autenticar com o Google. Verifique o console ou a configuração dos domínios.');
+                }
             };
 
             const logout = async () => {
@@ -664,6 +670,16 @@
                     {/* Conteúdo Principal */}
                     <main className="max-w-[1200px] mx-auto px-4 md:px-6 pt-10 pb-20">
                         
+                        {/* Mensagem de Erro de Autenticação (Aparece se faltar as chaves Firebase) */}
+                        {authError && (
+                            <div className="bg-rose-100 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 p-4 rounded-xl mb-6 flex justify-between items-start shadow-sm animate-in fade-in slide-in-from-top-4">
+                                <span className="text-sm font-medium">{authError}</span>
+                                <button onClick={() => setAuthError('')} className="p-1 hover:bg-rose-200 dark:hover:bg-rose-800 rounded-md transition-colors">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
+
                         {/* Título & Resumo */}
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
                             <div>
