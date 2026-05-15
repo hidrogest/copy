@@ -511,22 +511,23 @@
             // Inicialização Global
             useEffect(() => {
                 const init = async () => {
+                    // Evita o erro de API key inválida no console se o Firebase não estiver configurado
+                    if (!auth || firebaseConfig.apiKey === "SUA_API_KEY_AQUI") return;
+                    
                     try {
-                        if (auth) {
-                            await signInAnonymously(auth);
-                        }
+                        await signInAnonymously(auth);
                     } catch (e) { console.error("Erro na autenticação anônima", e); }
                 };
                 init();
                 
-                if (auth) {
+                if (auth && firebaseConfig.apiKey !== "SUA_API_KEY_AQUI") {
                     return onAuthStateChanged(auth, setUser);
                 }
             }, []);
 
             const loginGoogle = async () => {
                 setAuthError('');
-                if(!auth) {
+                if(!auth || firebaseConfig.apiKey === "SUA_API_KEY_AQUI") {
                     setAuthError("Erro: O Firebase não está configurado. Insira suas credenciais em 'firebaseConfig' no código.");
                     return;
                 }
