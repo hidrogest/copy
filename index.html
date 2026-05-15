@@ -5,70 +5,83 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Aprovação - Hidrogest</title>
     
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            lightBlue: '#55BBDF',
+                            darkBlue: '#153D56',
+                            darkGreen: '#00524D',
+                            mediumGreen: '#659368',
+                            lightGreen: '#CFDDBA',
+                        },
+                        darkBg: '#0D1520',
+                        darkCard: '#151F2E',
+                        darkBorder: 'rgba(255,255,255,0.07)'
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #F0F4F8; /* Fallback */
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "react": "https://esm.sh/react@18.2.0",
+                "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+                "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+            }
         }
-        /* Utilitário para esconder em mobile se necessário */
-        @media (max-width: 768px) {
-            .md-show { display: none !important; }
-        }
-    </style>
+    </script>
 </head>
-<body>
+<body class="m-0 p-0 antialiased selection:bg-brand-lightBlue selection:text-white">
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect, useRef } from 'https://esm.sh/react@18';
-        import { createRoot } from 'https://esm.sh/react-dom@18/client';
+        import React, { useState, useEffect } from 'react';
+        import { createRoot } from 'react-dom/client';
         
-        // Importando ícones do Lucide
-        import {
-            Download, Instagram, Linkedin, Heart, MessageCircle, Send, Bookmark,
-            ThumbsUp, Repeat2, Lightbulb, MoreHorizontal, Globe, Moon, Sun,
-            Grid, PlaySquare, UserSquare, Link as LinkIcon, Mail, Phone,
-            MessageSquare, CheckCircle2, ChevronLeft, LogOut, ChevronDown,
-            FileText, Clock, AlertCircle, Check, X, Zap, Eye, Copy, ExternalLink
-        } from 'https://esm.sh/lucide-react@0.292.0';
+        import { 
+            Download, Instagram, Linkedin, Heart, MessageCircle, Send, Bookmark, 
+            ThumbsUp, Lightbulb, MoreHorizontal, Globe, Moon, Sun, 
+            Grid, PlaySquare, UserSquare, Link as LinkIcon, Mail, Phone, 
+            MessageSquare, CheckCircle2, ChevronLeft, LogOut, ChevronDown, 
+            Clock, AlertCircle, Check, Copy, Eye 
+        } from 'lucide-react';
 
-        // Importando Firebase
-        import { initializeApp } from 'https://esm.sh/firebase@10.6.0/app';
-        import {
-            getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously,
-            GoogleAuthProvider, signInWithPopup, signOut
-        } from 'https://esm.sh/firebase@10.6.0/auth';
-        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from 'https://esm.sh/firebase@10.6.0/firestore';
+        // --- INTEGRAÇÃO COM FIREBASE ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously, 
+            GoogleAuthProvider, signInWithPopup, signOut 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, collection, addDoc, onSnapshot, serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Cole as chaves do seu Firebase aqui caso for usar fora de um ambiente injetado
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            // apiKey: "SUA_API_KEY",
-            // authDomain: "SEU_DOMAIN",
-            // projectId: "SEU_PROJECT_ID"
-        };
-        
-        // Prevenir inicialização com config vazia para não quebrar a UI
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         let app, auth, db;
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
         } catch(e) {
-            console.warn("Firebase não configurado completamente. Certifique-se de adicionar suas credenciais.");
+            console.warn("Aviso: Configuração do Firebase incompleta.", e);
         }
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sistema-aprovacao-copy';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sistema-aprovacao';
 
-        const brand = {
-            lightBlue: '#55BBDF',
-            darkBlue: '#153D56',
-            darkGreen: '#00524D',
-            mediumGreen: '#659368',
-            lightGreen: '#CFDDBA',
-        };
-
+        // --- DADOS DA APLICAÇÃO ---
         const logoUrl = "https://drive.google.com/thumbnail?id=1N19BuQD2EAwpsGJBu85561u67orNR92h&sz=w1000";
 
         const instaProfile = {
@@ -79,7 +92,7 @@
             following: 88,
             category: "Produto/serviço",
             bio: ["• Batimetria", "• Hidrometria", "• Monitoramento e qualidade de água", "• Operação e Manut. de equipamento... mais"],
-            address: "Rua Contria, 769, Alto Barroca., Belo Horizonte, Brazil 30431-028",
+            address: "Rua Contria, 769, Alto Barroca., Belo Horizonte",
             link: "linktr.ee/hidrogest"
         };
 
@@ -90,64 +103,204 @@
                 platform: "Instagram + LinkedIn",
                 status: "pending",
                 statusLabel: "Aguardando Avaliação",
-                author: "Hidrogest Engenharia e Consultoria",
+                author: "Hidrogest Engenharia",
                 role: "Engenharia e Meio Ambiente",
                 avatar: "https://drive.google.com/thumbnail?id=1N19BuQD2EAwpsGJBu85561u67orNR92h&sz=w200",
                 caption: `Imagine um grande funil esculpido pelo próprio relevo: essa é a dinâmica de uma bacia hidrográfica! 💧\n\nA topografia do terreno atua como um sistema de captação. Toda a água da chuva que cai nessa área converge pelas encostas até um único ponto de saída, formando o nosso rio principal. É exatamente esse "efeito funil" que dita o equilíbrio dos nossos ecossistemas e garante o abastecimento de água.\n\nVocê sabe a qual bacia hidrográfica o seu município pertence? Conta aqui para mim! 👇\n\n#GeografiaFisica #RecursosHidricos #BaciasHidrograficas #GestaoAmbiental`,
-                marketingNote: `Sugiro mantermos o termo "funil" na copy por uma questão estratégica de retenção e economia cognitiva. \n\nEm vídeos curtos, precisamos de um gancho visual imediato nos primeiros segundos, e a palavra "funil" traduz a complexidade topográfica de uma bacia hidrográfica em uma imagem mental instantânea que qualquer pessoa compreende sem esforço. Isso prende a atenção do usuário, facilita muito a inserção de elementos gráficos na edição do Reel e tangibiliza a dinâmica do relevo de forma didática.\n\nA ideia é usar essa analogia apenas como uma isca inicial para impedir que o público pule o vídeo e, logo na sequência, entregar a autoridade e o conceito técnico correto, garantindo engajamento sem perder o tom profissional.`,
+                marketingNote: `Sugiro mantermos o termo "funil" na copy por uma questão estratégica de retenção.\n\nEm vídeos curtos, precisamos de um gancho visual imediato, e a palavra "funil" traduz a complexidade topográfica em uma imagem mental instantânea que qualquer pessoa compreende. Isso prende a atenção, facilita a inserção de elementos gráficos na edição e tangibiliza a dinâmica do relevo de forma didática.\n\nA ideia é usar essa analogia como isca inicial e, na sequência, entregar o conceito técnico correto.`,
                 imageUrl: "https://drive.google.com/thumbnail?id=10YhCxnMMyVKty0uUbGLeuR7hIOFxe7uz&sz=w1000",
                 fallbackUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1080&auto=format&fit=crop",
-                date: "15 Mai 2025"
+                date: "15 Mai 2026"
             }
         ];
 
-        const StatusBadge = ({ status, label, isDark }) => {
-            const map = {
-                pending:  { bg: isDark ? 'rgba(251,191,36,0.12)' : '#FEFCE8', color: isDark ? '#FCD34D' : '#92400E', dot: '#F59E0B', border: isDark ? 'rgba(251,191,36,0.25)' : '#FDE68A' },
-                approved: { bg: isDark ? 'rgba(52,211,153,0.12)' : '#F0FDF4', color: isDark ? '#6EE7B7' : '#065F46', dot: '#10B981', border: isDark ? 'rgba(52,211,153,0.25)' : '#A7F3D0' },
-                rejected: { bg: isDark ? 'rgba(248,113,113,0.12)' : '#FFF1F2', color: isDark ? '#FCA5A5' : '#881337', dot: '#EF4444', border: isDark ? 'rgba(248,113,113,0.25)' : '#FECDD3' },
+        // --- UTILITÁRIOS ---
+        const handleDownload = async (url, fallbackUrl, filename) => {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error();
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl; link.download = filename || 'post.jpg';
+                document.body.appendChild(link); link.click();
+                document.body.removeChild(link); window.URL.revokeObjectURL(blobUrl);
+            } catch { window.open(url, '_blank'); }
+        };
+
+        const handleImgErr = (e, fallback) => { e.target.src = fallback; };
+
+        const useCopyToast = () => {
+            const [copied, setCopied] = useState(false);
+            const copy = (text) => {
+                // Alternativa de cópia via document.execCommand para suportar iFrames restritos
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                } catch (err) {
+                    console.error('Falha ao copiar', err);
+                }
+                document.body.removeChild(textArea);
             };
-            const s = map[status] || map.pending;
+            return { copied, copy };
+        };
+
+        const StatusBadge = ({ status, label }) => {
+            const styles = {
+                pending: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/20",
+                approved: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20",
+                rejected: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-400/10 dark:text-rose-400 dark:border-rose-400/20",
+            };
+            const dots = {
+                pending: "bg-amber-500", approved: "bg-emerald-500", rejected: "bg-rose-500"
+            };
+            
+            const currentStyle = styles[status] || styles.pending;
+            const currentDot = dots[status] || dots.pending;
+
             return (
-                <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    background: s.bg, color: s.color,
-                    border: `1px solid ${s.border}`,
-                    padding: '4px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap'
-                }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${currentStyle}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${currentDot}`}></span>
                     {label}
                 </span>
             );
         };
 
-        const handleDownload = async (url, fallbackUrl, filename) => {
-            try {
-                const r = await fetch(url);
-                if (!r.ok) throw new Error();
-                const blob = await r.blob();
-                const bu = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = bu; a.download = filename || 'post.jpg';
-                document.body.appendChild(a); a.click();
-                document.body.removeChild(a); window.URL.revokeObjectURL(bu);
-            } catch { window.open(url, '_blank'); }
+        const InstagramMockup = ({ post }) => {
+            const [view, setView] = useState('profile');
+
+            return (
+                <div className="bg-white dark:bg-black rounded-2xl border border-slate-300 dark:border-slate-800 overflow-hidden w-full max-w-[400px] mx-auto text-slate-900 dark:text-white transition-colors shadow-sm">
+                    {view === 'profile' ? (
+                        <div className="animate-in fade-in duration-300">
+                            {/* Insta Header */}
+                            <div className="flex items-center justify-center p-3.5 border-b border-slate-200 dark:border-slate-800 relative">
+                                <span className="font-bold text-base">{instaProfile.username}</span>
+                                <ChevronDown className="w-4 h-4 absolute right-4" />
+                            </div>
+                            
+                            {/* Profile Info */}
+                            <div className="p-4 pb-2">
+                                <div className="flex items-center gap-5 mb-3.5">
+                                    <div className="w-20 h-20 rounded-full p-0.5 bg-gradient-to-tr from-yellow-400 to-fuchsia-600 shrink-0">
+                                        <div className="w-full h-full rounded-full bg-white dark:bg-black p-0.5 flex items-center justify-center">
+                                            <img src={post.avatar} className="w-full h-full rounded-full object-contain" alt="Avatar" />
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4 flex-1 justify-around text-center">
+                                        <div className="flex flex-col"><span className="font-bold text-base">{instaProfile.posts}</span><span className="text-xs text-slate-500 dark:text-slate-400">posts</span></div>
+                                        <div className="flex flex-col"><span className="font-bold text-base">{instaProfile.followers}</span><span className="text-xs text-slate-500 dark:text-slate-400">seguidores</span></div>
+                                        <div className="flex flex-col"><span className="font-bold text-base">{instaProfile.following}</span><span className="text-xs text-slate-500 dark:text-slate-400">seguindo</span></div>
+                                    </div>
+                                </div>
+                                <div className="mb-3 text-sm">
+                                    <p className="font-bold mb-0.5">{instaProfile.name}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{instaProfile.category}</p>
+                                    <p className="mb-1 leading-snug whitespace-pre-wrap">{instaProfile.bio.join('\n')}</p>
+                                    <a href="#" className="font-semibold text-blue-900 dark:text-blue-300 flex items-center gap-1"><LinkIcon className="w-3 h-3" />{instaProfile.link}</a>
+                                </div>
+                                <div className="flex gap-2 mb-3">
+                                    {['Seguindo', 'Mensagem', 'Contato'].map(btn => (
+                                        <button key={btn} className="flex-1 py-1.5 rounded-lg bg-slate-100 dark:bg-[#1C1C1E] border border-slate-200 dark:border-slate-800 text-sm font-semibold">{btn}</button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Grid Tabs */}
+                            <div className="flex border-t border-slate-200 dark:border-slate-800 text-slate-400">
+                                <div className="flex-1 flex justify-center py-3 border-b-2 border-slate-900 dark:border-white text-slate-900 dark:text-white"><Grid className="w-5 h-5" /></div>
+                                <div className="flex-1 flex justify-center py-3"><PlaySquare className="w-5 h-5" /></div>
+                                <div className="flex-1 flex justify-center py-3"><UserSquare className="w-5 h-5" /></div>
+                            </div>
+
+                            {/* Grid Posts */}
+                            <div className="grid grid-cols-3 gap-0.5">
+                                <div onClick={() => setView('post')} className="aspect-[4/5] relative cursor-pointer group bg-slate-100 dark:bg-slate-900 overflow-hidden">
+                                    <img src={post.imageUrl} className="w-full h-full object-cover" alt="Post thumbnail" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <Eye className="w-6 h-6 text-white opacity-90" />
+                                    </div>
+                                </div>
+                                <div className="aspect-[4/5] bg-slate-100 dark:bg-[#1C1C1E]"></div>
+                                <div className="aspect-[4/5] bg-slate-100 dark:bg-[#1C1C1E]"></div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
+                            {/* Single Post View */}
+                            <div className="flex items-center p-3 border-b border-slate-200 dark:border-slate-800">
+                                <button onClick={() => setView('profile')} className="p-1 -ml-1 text-slate-900 dark:text-white">
+                                    <ChevronLeft className="w-6 h-6" />
+                                </button>
+                                <span className="font-bold text-[15px] flex-1 text-center mr-6">Publicações</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2.5 px-3.5 py-2.5">
+                                <img src={post.avatar} className="w-8 h-8 rounded-full object-contain border border-slate-200 dark:border-slate-700" alt="Avatar" />
+                                <span className="font-bold text-[13px]">{instaProfile.username}</span>
+                                <MoreHorizontal className="w-4 h-4 ml-auto text-slate-500" />
+                            </div>
+
+                            <div className="bg-black flex items-center justify-center border-y border-slate-200 dark:border-slate-800">
+                                <img src={post.imageUrl} onError={(e) => handleImgErr(e, post.fallbackUrl)} className="w-full object-contain max-h-[420px]" alt="Post" />
+                            </div>
+
+                            <div className="p-3.5 pb-6">
+                                <div className="flex justify-between mb-2">
+                                    <div className="flex gap-4">
+                                        <Heart className="w-6 h-6 cursor-pointer hover:text-slate-500 transition-colors" />
+                                        <MessageCircle className="w-6 h-6 cursor-pointer hover:text-slate-500 transition-colors" />
+                                        <Send className="w-6 h-6 cursor-pointer hover:text-slate-500 transition-colors" />
+                                    </div>
+                                    <Bookmark className="w-6 h-6 cursor-pointer hover:text-slate-500 transition-colors" />
+                                </div>
+                                <p className="font-bold text-[13px] mb-1">34 curtidas</p>
+                                <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
+                                    <strong className="mr-1.5">{instaProfile.username}</strong>{post.caption}
+                                </p>
+                                <p className="text-[11px] text-slate-500 mt-2 uppercase tracking-wider">Aguardando aprovação</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
         };
 
-        const handleImgErr = (e, fb) => { e.target.src = fb; };
-
-        const useCopyToast = () => {
-            const [copied, setCopied] = useState(false);
-            const copy = (text) => {
-                navigator.clipboard.writeText(text).then(() => {
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                });
-            };
-            return { copied, copy };
+        const LinkedinMockup = ({ post }) => {
+            return (
+                <div className="bg-white dark:bg-[#1D2226] border border-slate-300 dark:border-[#38434F] rounded-xl overflow-hidden w-full max-w-[500px] mx-auto text-slate-900 dark:text-white transition-colors shadow-sm">
+                    <div className="p-4 pb-2 flex items-start gap-3">
+                        <img src={post.avatar} className="w-12 h-12 rounded-full object-contain border border-slate-200 dark:border-slate-700 shrink-0" alt="Avatar" />
+                        <div className="flex-1">
+                            <p className="font-semibold text-sm mb-0.5 text-blue-700 dark:text-blue-400 cursor-pointer">{post.author}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">{post.role}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                Rascunho • <Globe className="w-3 h-3" />
+                            </p>
+                        </div>
+                        <MoreHorizontal className="w-5 h-5 text-slate-500 cursor-pointer" />
+                    </div>
+                    <p className="text-[13px] px-4 pb-3 leading-relaxed whitespace-pre-wrap">{post.caption}</p>
+                    <div className="border-y border-slate-300 dark:border-[#38434F]">
+                        <img src={post.imageUrl} onError={(e) => handleImgErr(e, post.fallbackUrl)} className="w-full object-contain max-h-[400px] bg-slate-100 dark:bg-black block" alt="Post" />
+                    </div>
+                    <div className="flex px-2 py-1">
+                        {[['Gostei', ThumbsUp], ['Comentar', MessageCircle], ['Enviar', Send]].map(([label, Icon]) => (
+                            <button key={label} className="flex-1 flex items-center justify-center gap-1.5 py-3 text-[13px] font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 rounded-md transition-colors">
+                                <Icon className="w-[18px] h-[18px]" /> {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
         };
 
-        const PostFeedback = ({ postId, isDark, user }) => {
+        const PostFeedback = ({ postId, user }) => {
             const [comments, setComments] = useState([]);
             const [newComment, setNewComment] = useState('');
             const [sending, setSending] = useState(false);
@@ -162,7 +315,7 @@
                         setComments(data);
                     }, err => console.error(err));
                     return () => unsub();
-                } catch(e) { console.error("Firestore não inicializado corretamente", e); }
+                } catch(e) { console.error("Erro Firestore", e); }
             }, [user, postId]);
 
             const submit = async (e) => {
@@ -173,7 +326,7 @@
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', `post_comments_${postId}`), {
                         text: newComment,
                         userId: user.uid,
-                        userName: user.isAnonymous ? 'Visitante' : (user.displayName || 'Usuário'),
+                        userName: user.isAnonymous ? 'Equipe (Visitante)' : (user.displayName || 'Usuário'),
                         userPhoto: user.photoURL || `https://ui-avatars.com/api/?name=${(user.displayName || 'U').charAt(0)}&background=153D56&color=fff`,
                         createdAt: serverTimestamp()
                     });
@@ -183,132 +336,92 @@
             };
 
             const isGoogle = user && !user.isAnonymous;
-            const cardBg = isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC';
-            const border = isDark ? 'rgba(255,255,255,0.07)' : '#E2E8F0';
-            const textSecondary = isDark ? '#94A3B8' : '#64748B';
 
             return (
-                <div style={{ borderTop: `1px solid ${border}` }}>
-                    {/* Approval bar */}
-                    <div style={{
-                        display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between',
-                        padding: '20px 28px',
-                        background: isDark ? 'rgba(85,187,223,0.06)' : 'rgba(0,82,77,0.04)',
-                        borderBottom: `1px solid ${border}`
-                    }}>
+                <div className="border-t border-slate-200 dark:border-darkBorder">
+                    {/* Barra de Aprovação Rápida */}
+                    <div className="flex flex-wrap items-center justify-between gap-4 p-5 md:px-7 md:py-5 bg-emerald-50/50 dark:bg-emerald-900/10 border-b border-slate-200 dark:border-darkBorder">
                         <div>
-                            <p style={{ fontWeight: 700, fontSize: 15, color: isDark ? '#E2E8F0' : '#0F172A', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
-                                <CheckCircle2 size={17} style={{ color: '#10B981' }} />
-                                Aprovar ou Solicitar Ajustes
+                            <p className="font-bold text-[15px] flex items-center gap-2 m-0 text-slate-900 dark:text-slate-200">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Aprovar ou Solicitar Ajustes
                             </p>
-                            <p style={{ fontSize: 13, color: textSecondary, margin: '4px 0 0' }}>
-                                Comunique-se com o produtor diretamente pelo canal preferido.
+                            <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-1">
+                                Comunique-se com o produtor via canal preferido.
                             </p>
                         </div>
-                        <div style={{ display: 'flex', gap: 10 }}>
-                            <a
+                        <div className="flex gap-2.5 w-full md:w-auto">
+                            <a 
                                 href={`https://wa.me/5531985547183?text=Olá Felipe! Sobre o post ${postId}...`}
                                 target="_blank" rel="noreferrer"
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 7,
-                                    background: '#22C55E', color: '#fff',
-                                    padding: '9px 18px', borderRadius: 10, fontWeight: 700, fontSize: 13,
-                                    textDecoration: 'none', transition: 'opacity .15s'
-                                }}
+                                className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-[13px] transition-colors shadow-sm"
                             >
-                                <Phone size={14} /> WhatsApp
+                                <Phone className="w-3.5 h-3.5" /> WhatsApp
                             </a>
-                            <a
+                            <a 
                                 href={`mailto:canellifelipe@gmail.com?subject=Aprovação - Post ${postId}`}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 7,
-                                    background: isDark ? 'rgba(255,255,255,0.07)' : '#fff',
-                                    color: isDark ? '#E2E8F0' : '#153D56',
-                                    border: `1px solid ${border}`,
-                                    padding: '9px 18px', borderRadius: 10, fontWeight: 700, fontSize: 13,
-                                    textDecoration: 'none'
-                                }}
+                                className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white dark:bg-white/5 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10 px-4 py-2 rounded-xl font-bold text-[13px] transition-colors shadow-sm"
                             >
-                                <Mail size={14} /> E-mail
+                                <Mail className="w-3.5 h-3.5" /> E-mail
                             </a>
                         </div>
                     </div>
 
-                    {/* Comments */}
-                    <div style={{ padding: '24px 28px' }}>
-                        <h4 style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#E2E8F0' : '#1E293B', display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 18px' }}>
-                            <MessageSquare size={15} style={{ color: isDark ? '#55BBDF' : '#00524D' }} />
+                    {/* Sessão de Comentários */}
+                    <div className="p-6 md:px-7 bg-slate-50/50 dark:bg-transparent">
+                        <h4 className="text-sm font-bold flex items-center gap-2 mb-4 text-slate-800 dark:text-slate-200">
+                            <MessageSquare className="w-4 h-4 text-brand-darkGreen dark:text-brand-lightBlue" /> 
                             Comentários & Notas Internas
                         </h4>
 
-                        <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 14, padding: 16, marginBottom: 18 }}>
+                        <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-darkBorder rounded-2xl p-4 mb-5 shadow-sm">
                             {!isGoogle ? (
-                                <div style={{ textAlign: 'center', padding: '12px 0' }}>
-                                    <p style={{ fontSize: 13, color: textSecondary, margin: 0 }}>
-                                        Faça login com Google para adicionar notas ou pedir ajustes.
+                                <div className="text-center py-3">
+                                    <p className="text-[13px] text-slate-500 dark:text-slate-400">
+                                        Faça login com Google no topo da página para adicionar notas ou pedir ajustes.
                                     </p>
                                 </div>
                             ) : (
-                                <form onSubmit={submit}>
-                                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                                        <img src={user.photoURL} alt="" style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0 }} />
-                                        <div style={{ flex: 1 }}>
-                                            <textarea
-                                                value={newComment}
-                                                onChange={e => setNewComment(e.target.value)}
-                                                placeholder="Adicione uma nota ou pedido de ajuste..."
-                                                style={{
-                                                    width: '100%', padding: '10px 14px', borderRadius: 10,
-                                                    border: `1px solid ${border}`,
-                                                    background: isDark ? 'rgba(15,23,42,0.6)' : '#fff',
-                                                    color: isDark ? '#E2E8F0' : '#1E293B',
-                                                    fontSize: 13, resize: 'none', height: 76, outline: 'none',
-                                                    fontFamily: 'inherit', boxSizing: 'border-box'
-                                                }}
-                                            />
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                                                <button
-                                                    type="submit"
-                                                    disabled={sending || !newComment.trim()}
-                                                    style={{
-                                                        padding: '8px 18px', borderRadius: 9, fontWeight: 700, fontSize: 13,
-                                                        background: (!sending && newComment.trim())
-                                                            ? (isDark ? '#55BBDF' : '#153D56') : (isDark ? '#334155' : '#CBD5E1'),
-                                                        color: (!sending && newComment.trim())
-                                                            ? (isDark ? '#0F172A' : '#fff') : (isDark ? '#64748B' : '#94A3B8'),
-                                                        border: 'none', cursor: sending || !newComment.trim() ? 'not-allowed' : 'pointer',
-                                                        transition: 'all .15s'
-                                                    }}
-                                                >
-                                                    {sending ? 'Enviando…' : 'Postar Nota'}
-                                                </button>
-                                            </div>
+                                <form onSubmit={submit} className="flex gap-3 items-start">
+                                    <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full shrink-0 shadow-sm" />
+                                    <div className="flex-1">
+                                        <textarea
+                                            value={newComment}
+                                            onChange={e => setNewComment(e.target.value)}
+                                            placeholder="Adicione uma nota, ideia ou pedido de ajuste..."
+                                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white text-[13px] placeholder:text-slate-400 resize-none h-20 focus:outline-none focus:ring-2 focus:ring-brand-lightBlue focus:border-transparent transition-all"
+                                        ></textarea>
+                                        <div className="flex justify-end mt-2">
+                                            <button 
+                                                type="submit" 
+                                                disabled={sending || !newComment.trim()}
+                                                className={`px-4 py-2 rounded-lg font-bold text-[13px] transition-all ${
+                                                    (!sending && newComment.trim()) 
+                                                    ? 'bg-brand-darkBlue dark:bg-brand-lightBlue text-white dark:text-slate-900 shadow-sm hover:opacity-90' 
+                                                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                {sending ? 'Enviando...' : 'Postar Nota'}
+                                            </button>
                                         </div>
                                     </div>
                                 </form>
                             )}
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div className="flex flex-col gap-3">
                             {comments.length === 0 ? (
-                                <p style={{ fontSize: 13, color: textSecondary, fontStyle: 'italic', margin: 0 }}>
-                                    Nenhuma nota ainda para esta publicação.
-                                </p>
+                                <p className="text-[13px] text-slate-500 dark:text-slate-400 italic">Nenhuma nota adicionada ainda para esta publicação.</p>
                             ) : comments.map(c => (
-                                <div key={c.id} style={{
-                                    display: 'flex', gap: 12, padding: '14px 16px',
-                                    background: isDark ? 'rgba(255,255,255,0.03)' : '#fff',
-                                    border: `1px solid ${border}`, borderRadius: 12
-                                }}>
-                                    <img src={c.userPhoto} alt="" style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
+                                <div key={c.id} className="flex gap-3 p-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-darkBorder rounded-xl shadow-sm">
+                                    <img src={c.userPhoto} alt="" className="w-8 h-8 rounded-full shrink-0 shadow-sm" />
                                     <div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                            <span style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#E2E8F0' : '#1E293B' }}>{c.userName}</span>
-                                            <span style={{ fontSize: 11, color: textSecondary }}>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-bold text-[13px] text-slate-900 dark:text-slate-200">{c.userName}</span>
+                                            <span className="text-[11px] text-slate-500">
                                                 {c.createdAt ? new Date(c.createdAt.toMillis()).toLocaleString('pt-BR') : 'agora'}
                                             </span>
                                         </div>
-                                        <p style={{ fontSize: 13, color: isDark ? '#CBD5E1' : '#475569', margin: 0, lineHeight: 1.6 }}>{c.text}</p>
+                                        <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{c.text}</p>
                                     </div>
                                 </div>
                             ))}
@@ -318,295 +431,119 @@
             );
         };
 
-        const InstagramMockup = ({ post, isDark }) => {
-            const [view, setView] = useState('profile');
-            const bg = isDark ? '#000' : '#fff';
-            const surface = isDark ? '#1C1C1E' : '#F5F5F5';
-            const border = isDark ? '#2C2C2E' : '#DBDBDB';
-            const text = isDark ? '#fff' : '#000';
-            const muted = isDark ? '#8E8E8E' : '#8E8E8E';
-
-            return (
-                <div style={{
-                    background: bg, borderRadius: 16, border: `1px solid ${border}`,
-                    overflow: 'hidden', width: '100%', maxWidth: 400, margin: '0 auto',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: text
-                }}>
-                    {view === 'profile' ? (
-                        <>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px 16px', borderBottom: `1px solid ${border}`, position: 'relative' }}>
-                                <span style={{ fontWeight: 700, fontSize: 16 }}>{instaProfile.username}</span>
-                                <ChevronDown size={16} style={{ position: 'absolute', right: 16 }} />
-                            </div>
-                            <div style={{ padding: '16px 16px 8px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 14 }}>
-                                    <div style={{ width: 80, height: 80, borderRadius: '50%', padding: 2, background: 'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', flexShrink: 0 }}>
-                                        <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: bg, padding: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <img src={post.avatar} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'contain' }} />
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: 24, flex: 1 }}>
-                                        {[['74','posts'],['295','seguidores'],['88','seguindo']].map(([n,l]) => (
-                                            <div key={l} style={{ textAlign: 'center', flex: 1 }}>
-                                                <div style={{ fontWeight: 700, fontSize: 16 }}>{n}</div>
-                                                <div style={{ fontSize: 12, color: muted }}>{l}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div style={{ marginBottom: 12 }}>
-                                    <p style={{ fontWeight: 700, fontSize: 13, margin: '0 0 2px' }}>{instaProfile.name}</p>
-                                    <p style={{ fontSize: 12, color: muted, margin: '0 0 4px' }}>{instaProfile.category}</p>
-                                    <p style={{ fontSize: 13, margin: '0 0 4px', lineHeight: 1.4 }}>{instaProfile.bio.join('\n')}</p>
-                                    <a href="#" style={{ fontSize: 13, color: '#00376B', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <LinkIcon size={12} />{instaProfile.link}
-                                    </a>
-                                </div>
-                                <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-                                    {['Seguindo','Mensagem','Contato'].map(b => (
-                                        <button key={b} style={{ flex: 1, padding: '6px 0', borderRadius: 8, border: `1px solid ${border}`, background: surface, color: text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{b}</button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', borderTop: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
-                                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '12px 0', borderBottom: `2px solid ${text}` }}><Grid size={22} /></div>
-                                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '12px 0', color: muted }}><PlaySquare size={22} /></div>
-                                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '12px 0', color: muted }}><UserSquare size={22} /></div>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 2 }}>
-                                <div onClick={() => setView('post')} style={{ aspectRatio: '4/5', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
-                                    <img src={post.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s' }}
-                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.35)'}
-                                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0)'}
-                                    >
-                                        <Eye size={22} color="#fff" style={{ opacity: 0.9 }} />
-                                    </div>
-                                </div>
-                                {[1,2].map(i => <div key={i} style={{ aspectRatio: '4/5', background: surface }} />)}
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: `1px solid ${border}` }}>
-                                <button onClick={() => setView('profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: text, padding: '4px 8px 4px 0', display: 'flex' }}>
-                                    <ChevronLeft size={22} />
-                                </button>
-                                <span style={{ fontWeight: 700, fontSize: 15, flex: 1, textAlign: 'center', marginRight: 30 }}>Publicações</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
-                                <img src={post.avatar} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'contain', border: `1px solid ${border}` }} />
-                                <span style={{ fontWeight: 700, fontSize: 13 }}>{instaProfile.username}</span>
-                                <MoreHorizontal size={16} style={{ marginLeft: 'auto', color: muted }} />
-                            </div>
-                            <div style={{ background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <img src={post.imageUrl} onError={e => handleImgErr(e, post.fallbackUrl)} alt="" style={{ width: '100%', objectFit: 'contain', maxHeight: 420 }} />
-                            </div>
-                            <div style={{ padding: '10px 14px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                    <div style={{ display: 'flex', gap: 16 }}>
-                                        <Heart size={24} style={{ cursor: 'pointer' }} />
-                                        <MessageCircle size={24} style={{ cursor: 'pointer' }} />
-                                        <Send size={24} style={{ cursor: 'pointer' }} />
-                                    </div>
-                                    <Bookmark size={24} style={{ cursor: 'pointer' }} />
-                                </div>
-                                <p style={{ fontWeight: 700, fontSize: 13, margin: '0 0 4px' }}>34 curtidas</p>
-                                <p style={{ fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                                    <strong>{instaProfile.username} </strong>{post.caption}
-                                </p>
-                                <p style={{ fontSize: 11, color: muted, marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Aguardando aprovação</p>
-                            </div>
-                        </>
-                    )}
-                </div>
-            );
-        };
-
-        const LinkedinMockup = ({ post, isDark }) => {
-            const bg = isDark ? '#1D2226' : '#fff';
-            const border = isDark ? '#38434F' : '#E0DFDC';
-            const text = isDark ? '#fff' : '#000';
-            const muted = isDark ? '#8B9197' : '#666';
-
-            return (
-                <div style={{
-                    background: bg, border: `1px solid ${border}`, borderRadius: 12,
-                    overflow: 'hidden', width: '100%', maxWidth: 500, margin: '0 auto',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: text
-                }}>
-                    <div style={{ padding: '14px 16px 8px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                        <img src={post.avatar} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'contain', border: `1px solid ${border}`, flexShrink: 0 }} />
-                        <div>
-                            <p style={{ fontWeight: 600, fontSize: 14, margin: '0 0 2px', color: isDark ? '#70B5F9' : '#0073B1', cursor: 'pointer' }}>{post.author}</p>
-                            <p style={{ fontSize: 12, color: muted, margin: '0 0 1px' }}>{post.role}</p>
-                            <p style={{ fontSize: 11, color: muted, margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                Rascunho · <Globe size={11} />
-                            </p>
-                        </div>
-                        <MoreHorizontal size={18} style={{ marginLeft: 'auto', color: muted, cursor: 'pointer' }} />
-                    </div>
-                    <p style={{ fontSize: 13, padding: '0 16px 12px', margin: 0, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{post.caption}</p>
-                    <div style={{ borderTop: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
-                        <img src={post.imageUrl} onError={e => handleImgErr(e, post.fallbackUrl)} alt="" style={{ width: '100%', objectFit: 'contain', maxHeight: 400, background: isDark ? '#000' : '#F3F2EF', display: 'block' }} />
-                    </div>
-                    <div style={{ display: 'flex', padding: '2px 8px' }}>
-                        {[['Gostei', ThumbsUp], ['Comentar', MessageCircle], ['Enviar', Send]].map(([label, Icon]) => (
-                            <button key={label} style={{
-                                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                                padding: '11px 4px', background: 'none', border: 'none', cursor: 'pointer',
-                                color: muted, fontSize: 13, fontWeight: 600, borderRadius: 8
-                            }}>
-                                <Icon size={18} />{label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            );
-        };
-
-        const PostItem = ({ post, isDark, user }) => {
+        const PostItem = ({ post, user }) => {
             const [tab, setTab] = useState('instagram');
             const { copied, copy } = useCopyToast();
             const [expanded, setExpanded] = useState(false);
 
-            const border = isDark ? 'rgba(255,255,255,0.07)' : '#E2E8F0';
-            const surface = isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC';
-            const textPrimary = isDark ? '#F1F5F9' : '#0F172A';
-            const textSecondary = isDark ? '#94A3B8' : '#64748B';
-
-            const previewText = post.caption.slice(0, 120) + (post.caption.length > 120 ? '…' : '');
+            const previewText = post.caption.slice(0, 140) + (post.caption.length > 140 ? '…' : '');
 
             return (
-                <article style={{
-                    borderRadius: 20, border: `1px solid ${border}`,
-                    overflow: 'hidden', marginBottom: 40,
-                    background: isDark ? '#151F2E' : '#fff',
-                    boxShadow: isDark ? '0 4px 40px rgba(0,0,0,0.4)' : '0 4px 32px rgba(15,23,42,0.06)',
-                    transition: 'box-shadow .2s'
-                }}>
-                    <div style={{
-                        display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between',
-                        padding: '20px 24px', borderBottom: `1px solid ${border}`
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                            <div style={{
-                                width: 42, height: 42, borderRadius: 12, overflow: 'hidden', flexShrink: 0,
-                                background: surface, border: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center'
-                            }}>
-                                <img src={post.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                <article className="bg-white dark:bg-darkCard rounded-3xl border border-slate-200 dark:border-darkBorder shadow-xl shadow-slate-200/50 dark:shadow-black/40 overflow-hidden mb-12 transition-all duration-300">
+                    
+                    {/* Header do Card */}
+                    <div className="flex flex-wrap items-center justify-between gap-4 p-5 md:px-7 md:py-5 border-b border-slate-200 dark:border-darkBorder">
+                        <div className="flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-0.5">
+                                <img src={post.avatar} alt="Avatar" className="w-full h-full object-contain rounded-lg" />
                             </div>
                             <div>
-                                <p style={{ fontWeight: 700, fontSize: 15, color: textPrimary, margin: 0 }}>{post.title}</p>
-                                <p style={{ fontSize: 12, color: textSecondary, margin: '2px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <Clock size={12} />{post.date} · {post.platform}
+                                <h3 className="font-bold text-[16px] text-slate-900 dark:text-slate-100">{post.title}</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                    <Clock className="w-3 h-3" /> {post.date} • {post.platform}
                                 </p>
                             </div>
                         </div>
-                        <StatusBadge status={post.status} label={post.statusLabel} isDark={isDark} />
+                        <StatusBadge status={post.status} label={post.statusLabel} />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-                        <div style={{ background: isDark ? '#0D1520' : '#F1F5F9', borderRight: `1px solid ${border}` }}>
-                            <div style={{ display: 'flex', borderBottom: `1px solid ${border}`, background: isDark ? '#151F2E' : '#fff' }}>
+                    {/* Divisão Grid 1x2 (Mockup / Detalhes) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+                        
+                        {/* Lado Esquerdo: Simulador da Rede Social */}
+                        <div className="bg-slate-50 dark:bg-slate-900/50 lg:border-r border-slate-200 dark:border-darkBorder flex flex-col">
+                            {/* Abas Mockup */}
+                            <div className="flex border-b border-slate-200 dark:border-darkBorder bg-white dark:bg-darkCard sticky top-0 z-10">
                                 {[['instagram', Instagram, 'Instagram'], ['linkedin', Linkedin, 'LinkedIn']].map(([id, Icon, label]) => (
-                                    <button key={id} onClick={() => setTab(id)} style={{
-                                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                                        padding: '14px 0', background: 'none', border: 'none', cursor: 'pointer',
-                                        fontWeight: 700, fontSize: 13, transition: 'all .15s',
-                                        borderBottom: tab === id ? `2px solid ${isDark ? '#55BBDF' : '#00524D'}` : '2px solid transparent',
-                                        color: tab === id ? (isDark ? '#55BBDF' : '#00524D') : textSecondary
-                                    }}>
-                                        <Icon size={15} />{label}
+                                    <button 
+                                        key={id} 
+                                        onClick={() => setTab(id)} 
+                                        className={`flex-1 flex items-center justify-center gap-2 py-4 text-[13px] font-bold transition-all border-b-2 ${
+                                            tab === id 
+                                                ? 'border-brand-darkGreen dark:border-brand-lightBlue text-brand-darkGreen dark:text-brand-lightBlue bg-slate-50/50 dark:bg-white/5' 
+                                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                        }`}
+                                    >
+                                        <Icon className="w-4 h-4" /> {label}
                                     </button>
                                 ))}
                             </div>
-                            <div style={{ padding: '24px 16px', display: 'flex', justifyContent: 'center', minHeight: 500, overflowY: 'auto' }}>
-                                {tab === 'instagram' ? <InstagramMockup post={post} isDark={isDark} /> : <LinkedinMockup post={post} isDark={isDark} />}
+                            
+                            {/* Área do Mockup */}
+                            <div className="p-6 md:p-8 flex justify-center items-start min-h-[550px] overflow-y-auto">
+                                {tab === 'instagram' ? <InstagramMockup post={post} /> : <LinkedinMockup post={post} />}
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ flex: 1, padding: '28px 28px 0' }}>
-                                <div style={{ marginBottom: 28 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: isDark ? '#55BBDF' : '#00524D', margin: 0 }}>
-                                            Texto de Publicação
-                                        </p>
-                                        <button onClick={() => copy(post.caption)} style={{
-                                            display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
-                                            background: surface, border: `1px solid ${border}`, borderRadius: 8,
-                                            cursor: 'pointer', fontSize: 12, fontWeight: 600, color: textSecondary,
-                                            transition: 'all .15s'
-                                        }}>
-                                            {copied ? <Check size={13} style={{ color: '#10B981' }} /> : <Copy size={13} />}
-                                            {copied ? 'Copiado!' : 'Copiar'}
-                                        </button>
-                                    </div>
-                                    <div style={{
-                                        background: surface, border: `1px solid ${border}`, borderRadius: 14,
-                                        padding: '18px 20px', fontSize: 13, lineHeight: 1.7, color: textPrimary,
-                                        whiteSpace: 'pre-wrap', position: 'relative'
-                                    }}>
-                                        {expanded ? post.caption : previewText}
-                                        {post.caption.length > 120 && (
-                                            <button onClick={() => setExpanded(!expanded)} style={{
-                                                background: 'none', border: 'none', cursor: 'pointer',
-                                                color: isDark ? '#55BBDF' : '#00524D', fontSize: 13, fontWeight: 700, padding: '2px 0', display: 'block', marginTop: 4
-                                            }}>
-                                                {expanded ? 'Ver menos ↑' : 'Ver completo ↓'}
-                                            </button>
-                                        )}
-                                    </div>
+                        {/* Lado Direito: Copy, Nota Estratégica e Downloads */}
+                        <div className="flex flex-col p-6 md:p-8 lg:p-10">
+                            
+                            {/* Bloco Copy */}
+                            <div className="mb-8">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-xs font-bold uppercase tracking-widest text-brand-darkGreen dark:text-brand-lightBlue">
+                                        Texto de Publicação
+                                    </h4>
+                                    <button 
+                                        onClick={() => copy(post.caption)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+                                    >
+                                        {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                        {copied ? 'Copiado!' : 'Copiar'}
+                                    </button>
                                 </div>
-
-                                <div style={{ marginBottom: 28 }}>
-                                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: isDark ? '#FCD34D' : '#92400E', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 7 }}>
-                                        <Lightbulb size={13} /> Nota Estratégica
-                                    </p>
-                                    <div style={{
-                                        borderRadius: 14, padding: '18px 20px',
-                                        background: isDark ? 'rgba(251,191,36,0.06)' : '#FFFBEB',
-                                        border: `1px solid ${isDark ? 'rgba(251,191,36,0.15)' : '#FDE68A'}`,
-                                        position: 'relative', paddingLeft: 24
-                                    }}>
-                                        <div style={{
-                                            position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
-                                            borderRadius: '14px 0 0 14px',
-                                            background: isDark ? '#FCD34D' : '#F59E0B'
-                                        }} />
-                                        <p style={{ fontSize: 13, lineHeight: 1.7, color: isDark ? '#FEF3C7' : '#78350F', margin: 0, whiteSpace: 'pre-wrap' }}>
-                                            {post.marketingNote}
-                                        </p>
-                                    </div>
+                                <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-darkBorder rounded-2xl p-5 md:p-6 text-[13px] leading-relaxed text-slate-800 dark:text-slate-200 whitespace-pre-wrap shadow-sm">
+                                    {expanded ? post.caption : previewText}
+                                    {post.caption.length > 140 && (
+                                        <button 
+                                            onClick={() => setExpanded(!expanded)}
+                                            className="block mt-2 font-bold text-brand-darkGreen dark:text-brand-lightBlue hover:underline focus:outline-none"
+                                        >
+                                            {expanded ? 'Ocultar ↑' : 'Ver copy completa ↓'}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
-                            <div style={{ padding: '20px 28px 28px', borderTop: `1px solid ${border}`, background: isDark ? 'rgba(255,255,255,0.02)' : '#FAFAFA' }}>
-                                <button
+                            {/* Bloco Nota Estratégica */}
+                            <div className="mb-8 mt-auto">
+                                <h4 className="text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-400 flex items-center gap-2 mb-4">
+                                    <Lightbulb className="w-4 h-4" /> Nota Estratégica
+                                </h4>
+                                <div className="bg-amber-50 dark:bg-amber-400/10 border border-amber-200 dark:border-amber-400/20 rounded-2xl p-5 md:p-6 relative shadow-sm">
+                                    <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl bg-amber-500"></div>
+                                    <p className="text-[13px] leading-relaxed text-amber-900 dark:text-amber-100 whitespace-pre-wrap ml-2 m-0">
+                                        {post.marketingNote}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Botão Download Base */}
+                            <div className="pt-6 border-t border-slate-200 dark:border-darkBorder">
+                                <button 
                                     onClick={() => handleDownload(post.imageUrl, post.fallbackUrl, `${post.title}.jpg`)}
-                                    style={{
-                                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                                        padding: '14px 24px', borderRadius: 14, border: 'none', cursor: 'pointer',
-                                        background: isDark ? '#55BBDF' : '#153D56',
-                                        color: isDark ? '#0F172A' : '#fff',
-                                        fontSize: 15, fontWeight: 700, transition: 'opacity .15s',
-                                        letterSpacing: '-0.01em'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
-                                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                                    className="w-full flex items-center justify-center gap-2.5 bg-brand-darkBlue dark:bg-brand-lightBlue text-white dark:text-slate-900 hover:opacity-90 px-6 py-4 rounded-2xl font-bold text-[15px] transition-all shadow-md active:scale-[0.98]"
                                 >
-                                    <Download size={18} />
-                                    Baixar Imagem Base
+                                    <Download className="w-5 h-5" /> Baixar Imagem Base
                                 </button>
-                                <p style={{ textAlign: 'center', fontSize: 12, color: textSecondary, margin: '10px 0 0' }}>
-                                    Arquivo para edição final do post
+                                <p className="text-center text-xs font-medium text-slate-500 mt-3">
+                                    Arquivo nativo para montagem da arte final.
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    <PostFeedback postId={post.id} isDark={isDark} user={user} />
+                    <PostFeedback postId={post.id} user={user} />
                 </article>
             );
         };
@@ -615,6 +552,16 @@
             const [isDark, setIsDark] = useState(false);
             const [user, setUser] = useState(null);
 
+            // Gerencia classe Dark Mode no root e no tailwind
+            useEffect(() => {
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }, [isDark]);
+
+            // Inicialização Global
             useEffect(() => {
                 const init = async () => {
                     try {
@@ -625,18 +572,19 @@
                                 await signInAnonymously(auth);
                             }
                         }
-                    } catch (e) { console.error(e); }
+                    } catch (e) { console.error("Erro na autenticação", e); }
                 };
                 init();
-                if(auth) {
+                
+                if (auth) {
                     return onAuthStateChanged(auth, setUser);
                 }
             }, []);
 
             const loginGoogle = async () => {
-                if(!auth) return alert("Firebase não configurado.");
+                if(!auth) return;
                 try { await signInWithPopup(auth, new GoogleAuthProvider()); }
-                catch { alert('Não foi possível abrir o popup do Google.'); }
+                catch(e) { console.error('Erro de popup', e); }
             };
 
             const logout = async () => {
@@ -645,120 +593,102 @@
                 await signInAnonymously(auth);
             };
 
-            const bg = isDark ? '#0D1520' : '#F0F4F8';
-            const headerBg = isDark ? 'rgba(21,31,46,0.95)' : 'rgba(255,255,255,0.95)';
-            const border = isDark ? 'rgba(255,255,255,0.07)' : '#E2E8F0';
-            const textPrimary = isDark ? '#F1F5F9' : '#0F172A';
-            const textSecondary = isDark ? '#94A3B8' : '#64748B';
-
-            const isGoogle = user && !user.isAnonymous;
+            const isGoogleUser = user && !user.isAnonymous;
 
             return (
-                <div style={{ minHeight: '100vh', background: bg, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', transition: 'background .3s' }}>
-                    <header style={{
-                        position: 'sticky', top: 0, zIndex: 50,
-                        background: headerBg,
-                        backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-                        borderBottom: `1px solid ${border}`,
-                        padding: '0 20px'
-                    }}>
-                        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64, gap: 16 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                                <img src={logoUrl} alt="Hidrogest" style={{
-                                    height: 40, objectFit: 'contain',
-                                    filter: isDark ? 'brightness(0) invert(1)' : 'none',
-                                    opacity: isDark ? 0.9 : 1
-                                }} />
-                                <div style={{ borderLeft: `1px solid ${border}`, paddingLeft: 14 }}>
-                                    <p style={{ fontWeight: 800, fontSize: 14, color: textPrimary, margin: 0, lineHeight: 1.2 }}>Sistema de Aprovação</p>
-                                    <p style={{ fontSize: 11, color: textSecondary, margin: 0 }}>Copywriting & Conteúdo</p>
+                <div className="min-h-screen bg-[#F0F4F8] dark:bg-darkBg text-slate-900 dark:text-white transition-colors duration-300 font-sans">
+                    
+                    {/* Topbar Fixa */}
+                    <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#151F2E]/95 backdrop-blur-xl border-b border-slate-200 dark:border-darkBorder transition-colors">
+                        <div className="max-w-[1200px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
+                            
+                            {/* Logo & Marca */}
+                            <div className="flex items-center gap-4">
+                                <img 
+                                    src={logoUrl} 
+                                    alt="Hidrogest" 
+                                    className="h-10 object-contain dark:brightness-0 dark:invert opacity-100 dark:opacity-90"
+                                />
+                                <div className="hidden sm:block border-l border-slate-200 dark:border-slate-700 pl-4 py-1">
+                                    <h1 className="font-extrabold text-[15px] leading-tight text-slate-900 dark:text-white tracking-tight">Sistema de Aprovação</h1>
+                                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Copywriting & Conteúdo</p>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <div style={{
-                                    display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
-                                    background: isDark ? 'rgba(251,191,36,0.1)' : '#FEFCE8',
-                                    border: `1px solid ${isDark ? 'rgba(251,191,36,0.2)' : '#FDE68A'}`,
-                                    borderRadius: 999, fontSize: 12, fontWeight: 700,
-                                    color: isDark ? '#FCD34D' : '#92400E'
-                                }}>
-                                    <AlertCircle size={12} />
-                                    {portfolioData.length} pendente{portfolioData.length !== 1 ? 's' : ''}
+                            {/* Controles: Login & Tema */}
+                            <div className="flex items-center gap-3 md:gap-4">
+                                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-400/10 border border-amber-200 dark:border-amber-400/20 text-xs font-bold text-amber-700 dark:text-amber-400">
+                                    <AlertCircle className="w-3.5 h-3.5" />
+                                    <span>{portfolioData.length} pendente{portfolioData.length !== 1 ? 's' : ''}</span>
                                 </div>
 
-                                {isGoogle ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <img src={user.photoURL} alt="" style={{ width: 32, height: 32, borderRadius: '50%' }} />
-                                        <span style={{ fontSize: 13, fontWeight: 600, color: textPrimary, display: 'none' }} className="md-show">
-                                            {user.displayName?.split(' ')[0]}
-                                        </span>
-                                        <button onClick={logout} style={{
-                                            background: 'none', border: 'none', cursor: 'pointer',
-                                            color: textSecondary, display: 'flex', alignItems: 'center', padding: 4
-                                        }} title="Sair">
-                                            <LogOut size={15} />
+                                {isGoogleUser ? (
+                                    <div className="flex items-center gap-3 pr-2 border-r border-slate-200 dark:border-slate-700">
+                                        <img src={user.photoURL} className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm" alt="Perfil" />
+                                        <button 
+                                            onClick={logout} 
+                                            className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
+                                            title="Sair"
+                                        >
+                                            <LogOut className="w-4 h-4" />
                                         </button>
                                     </div>
                                 ) : (
-                                    <button onClick={loginGoogle} style={{
-                                        display: 'flex', alignItems: 'center', gap: 8,
-                                        background: isDark ? 'rgba(255,255,255,0.08)' : '#fff',
-                                        border: `1px solid ${border}`, borderRadius: 10,
-                                        padding: '7px 14px', cursor: 'pointer',
-                                        fontSize: 13, fontWeight: 700, color: textPrimary
-                                    }}>
-                                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" style={{ width: 16, height: 16 }} />
-                                        Entrar
+                                    <button 
+                                        onClick={loginGoogle}
+                                        className="flex items-center gap-2 bg-white dark:bg-white/5 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                                    >
+                                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-3.5 h-3.5" alt="Google" />
+                                        <span className="hidden sm:inline">Entrar Equipe</span>
                                     </button>
                                 )}
 
-                                <button onClick={() => setIsDark(!isDark)} style={{
-                                    width: 36, height: 36, borderRadius: 10, border: `1px solid ${border}`,
-                                    background: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9',
-                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    color: isDark ? '#FCD34D' : '#64748B', transition: 'all .15s'
-                                }}>
-                                    {isDark ? <Sun size={16} /> : <Moon size={16} />}
+                                <button 
+                                    onClick={() => setIsDark(!isDark)}
+                                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:text-amber-400 transition-colors shadow-sm"
+                                    title="Alternar Tema"
+                                >
+                                    {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                                 </button>
                             </div>
                         </div>
                     </header>
 
-                    <main style={{ maxWidth: 1100, margin: '0 auto', padding: '36px 16px 60px' }}>
-                        <div style={{ marginBottom: 32 }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-                                <div>
-                                    <h1 style={{ fontSize: 26, fontWeight: 800, color: textPrimary, margin: '0 0 6px', letterSpacing: '-0.02em' }}>
-                                        Publicações para Revisão
-                                    </h1>
-                                    <p style={{ fontSize: 14, color: textSecondary, margin: 0 }}>
-                                        Analise os mockups, leia a nota estratégica e sinalize sua aprovação ou pedido de ajuste.
-                                    </p>
-                                </div>
-                                <div style={{ display: 'flex', gap: 10 }}>
-                                    {[['Pendentes', portfolioData.filter(p => p.status === 'pending').length, '#F59E0B'],
-                                      ['Total', portfolioData.length, isDark ? '#55BBDF' : '#153D56']
-                                    ].map(([label, count, color]) => (
-                                        <div key={label} style={{
-                                            padding: '10px 18px', borderRadius: 12,
-                                            background: isDark ? 'rgba(255,255,255,0.04)' : '#fff',
-                                            border: `1px solid ${border}`, textAlign: 'center', minWidth: 80
-                                        }}>
-                                            <p style={{ fontSize: 22, fontWeight: 800, color, margin: 0 }}>{count}</p>
-                                            <p style={{ fontSize: 11, color: textSecondary, margin: 0 }}>{label}</p>
-                                        </div>
-                                    ))}
-                                </div>
+                    {/* Conteúdo Principal */}
+                    <main className="max-w-[1200px] mx-auto px-4 md:px-6 pt-10 pb-20">
+                        
+                        {/* Título & Resumo */}
+                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+                            <div>
+                                <h2 className="text-3xl font-extrabold tracking-tight mb-2 text-slate-900 dark:text-white">
+                                    Publicações para Revisão
+                                </h2>
+                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-xl">
+                                    Analise os mockups, leia as notas estratégicas e valide o conteúdo ou solicite ajustes diretos para a equipe de produção.
+                                </p>
+                            </div>
+                            
+                            <div className="flex gap-3">
+                                {[['Pendentes', portfolioData.filter(p => p.status === 'pending').length, isDark ? 'text-amber-400' : 'text-amber-600'], 
+                                  ['Total', portfolioData.length, isDark ? 'text-brand-lightBlue' : 'text-brand-darkBlue']].map(([lbl, val, colClass], i) => (
+                                    <div key={i} className="bg-white dark:bg-white/5 border border-slate-200 dark:border-darkBorder rounded-2xl px-5 py-3 text-center min-w-[90px] shadow-sm">
+                                        <span className={`block text-2xl font-black mb-0.5 ${colClass}`}>{val}</span>
+                                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{lbl}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
 
-                        {portfolioData.map(post => (
-                            <PostItem key={post.id} post={post} isDark={isDark} user={user} />
-                        ))}
+                        {/* Lista de Cards */}
+                        <div className="space-y-12">
+                            {portfolioData.map(post => (
+                                <PostItem key={post.id} post={post} user={user} />
+                            ))}
+                        </div>
 
-                        <footer style={{ textAlign: 'center', fontSize: 12, color: isDark ? '#475569' : '#94A3B8', paddingTop: 12 }}>
-                            Sistema de Produção e Aprovação de Conteúdo · Desenvolvido para Felipe Canelli
+                        {/* Rodapé Interno */}
+                        <footer className="text-center mt-16 text-xs font-semibold text-slate-400 dark:text-slate-500">
+                            Sistema de Produção e Aprovação de Conteúdo • Desenvolvido para Felipe Canelli
                         </footer>
                     </main>
                 </div>
